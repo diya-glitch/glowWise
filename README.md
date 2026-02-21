@@ -6,7 +6,7 @@
 
 ## Basic Details
 
-### Team Name: [Name]
+### Team Name: [byTheBie]
 
 ### Team Members
 - Member 1: [Name] - [College]
