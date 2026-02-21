@@ -9,7 +9,7 @@
 ### Team Name: [byTheBie]
 
 ### Team Members
-- Member 1: [Name] - [College]
+- Member 1: [Diya] - [College]
 - Member 2: [Name] - [College]
 
 ### Hosted Project Link
