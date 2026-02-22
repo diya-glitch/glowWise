@@ -1,302 +1,112 @@
 <p align="center">
-  <img src="./img.png" alt="Project Banner" width="100%">
+  <img src="./img.png" alt="GlowWise Banner" width="100%">
 </p>
 
-# [Project Name] 🎯
+# GlowWise 🎯
 
-## Basic Details
+GlowWise is a single-page, client-side web application that generates personalized skincare product recommendations based on user input (skin type, concerns, allergies, budget). This repository contains the frontend demo built with vanilla HTML, CSS and JavaScript.
 
-### Team Name: [byTheBie]
+## Team
 
-### Team Members
-- Member 1: [Diya] - [College]
-- Member 2: [Chintu] - [College]
+- **Team name:** byTheBie
+- **Members:** Diya, Chintu (Toch Institute of Science And Technology)
 
-### Hosted Project Link
-[mention your project hosted link here]
+## Live demo
 
-### Project Description
-[2-3 lines about what your project does]
+https://glow-wise.vercel.app/
 
-### The Problem statement
-[What problem are you solving?]
+## Repository structure
 
-### The Solution
-[How are you solving it?]
+- `frontend/`
+  - `index.html` — app shell and page container
+  - `assets/css/style.css` — extracted stylesheet
+  - `assets/js/script.js` — main application logic, sample product & category data
 
----
+Open the `frontend/` folder to run a local copy.
 
-## Technical Details
+## Key features
 
-### Technologies/Components Used
+- Guided quiz and tag inputs to capture skin type, concerns, and allergies
+- Client-side product DB with compatibility scoring and sample reviews
+- Results grid, product detail view, save/favourites, and review posting (stored in LocalStorage)
+- LocalStorage persistence for users, search history and saved products
 
-**For Software:**
-- Languages used: [e.g., JavaScript, Python, Java]
-- Frameworks used: [e.g., React, Django, Spring Boot]
-- Libraries used: [e.g., axios, pandas, JUnit]
-- Tools used: [e.g., VS Code, Git, Docker]
+## Recent changes / important notes
 
-**For Hardware:**
-- Main components: [List main components]
-- Specifications: [Technical specifications]
-- Tools required: [List tools needed]
+- The original project was a single HTML file with embedded CSS/JS. It has been refactored so styles and scripts live in `assets/css/style.css` and `assets/js/script.js`.
+- A temporary corruption was found in `index.html` during the split; the file was replaced with a minimal shell that includes the DOM element IDs the script expects. If you need the original full UI markup restored, I can re-insert it from the original source.
 
----
+## Run locally (quick)
 
-## Features
+1. Open a terminal in the `frontend` folder.
+2. Start a static server (Python 3):
 
-List the key features of your project:
-- Feature 1: [Description]
-- Feature 2: [Description]
-- Feature 3: [Description]
-- Feature 4: [Description]
-
----
-
-## Implementation
-
-### For Software:
-
-#### Installation
-```bash
-[Installation commands - e.g., npm install, pip install -r requirements.txt]
+```powershell
+python -m http.server 8000
 ```
 
-#### Run
-```bash
-[Run commands - e.g., npm start, python app.py]
-```
+3. Open http://127.0.0.1:8000/ in a browser (or use the VS Code Simple Browser).
 
-### For Hardware:
+Notes:
+- The app is client-only; no backend is required.
+- If you prefer Node, use `npx http-server . -p 8000` from the `frontend` folder.
 
-#### Components Required
-[List all components needed with specifications]
+## Troubleshooting
 
-#### Circuit Setup
-[Explain how to set up the circuit]
+- Blank page or JS errors: open the browser console (F12) and check error messages.
+- Common fixes:
+  - Ensure `assets/js/script.js` is present and included only once in `index.html`.
+  - Ensure `index.html` contains the DOM IDs used by the script (`summaryBanner`, `resultGrid`, `detail-content`, `sidePanel`, `sideOverlay`, `filterPanel`, `userChip`, etc.).
+  - Clear app state: DevTools → Application → LocalStorage → remove `gw_users` and any `gw_data_*` entries.
+- If a function is undefined, verify `assets/js/script.js` is not truncated and is loaded after the DOM elements it references.
 
----
+## Development notes
 
-## Project Documentation
+- The sample product and category data live inside `assets/js/script.js` for demo simplicity.
+- The app uses inline event attributes in HTML (e.g., `onclick="openSidePanel()"`); when renaming functions, update both the HTML and the script.
 
-### For Software:
+## Testing flows
 
-#### Screenshots (Add at least 3)
+- Complete the quiz → select budget → start analysis → view results grid
+- Open a product card → save to favourites → open profile to view saved items
+- Sign up / Sign in (data saved in LocalStorage) or continue as guest
 
-![Screenshot1](Add screenshot 1 here with proper name)
-*Add caption explaining what this shows*
+## Contributing
 
-![Screenshot2](Add screenshot 2 here with proper name)
-*Add caption explaining what this shows*
+- Make changes in the `frontend/` folder. If you change DOM IDs or function names, update `assets/js/script.js` accordingly.
+- Open a pull request describing your change and the steps to verify it.
 
-![Screenshot3](Add screenshot 3 here with proper name)
-*Add caption explaining what this shows*
+## AI tools & acknowledgements
 
-#### Diagrams
+- Tools used during development: GitHub Copilot, ChatGPT (for guidance), Claude (optional).
+- Human contributions: UI/UX design, product data curation, application logic and testing.
 
-**System Architecture:**
+## License
 
-![Architecture Diagram](docs/architecture.png)
-*Explain your system architecture - components, data flow, tech stack interaction*
-
-**Application Workflow:**
-
-![Workflow](docs/workflow.png)
-*Add caption explaining your workflow*
+This project is released under the MIT License — see the full text below.
 
 ---
 
-### For Hardware:
+Copyright (c) 2026 byTheBie
 
-#### Schematic & Circuit
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-![Circuit](Add your circuit diagram here)
-*Add caption explaining connections*
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-![Schematic](Add your schematic diagram here)
-*Add caption explaining the schematic*
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
-#### Build Photos
-
-![Team](Add photo of your team here)
-
-![Components](Add photo of your components here)
-*List out all components shown*
-
-![Build](Add photos of build process here)
-*Explain the build steps*
-
-![Final](Add photo of final product here)
-*Explain the final build*
-
----
-
-## Additional Documentation
-
-### For Web Projects with Backend:
-
-#### API Documentation
-
-**Base URL:** `https://api.yourproject.com`
-
-##### Endpoints
-
-**GET /api/endpoint**
-- **Description:** [What it does]
-- **Parameters:**
-  - `param1` (string): [Description]
-  - `param2` (integer): [Description]
-- **Response:**
-```json
-{
-  "status": "success",
-  "data": {}
-}
-```
-
-**POST /api/endpoint**
-- **Description:** [What it does]
-- **Request Body:**
-```json
-{
-  "field1": "value1",
-  "field2": "value2"
-}
-```
-- **Response:**
-```json
-{
-  "status": "success",
-  "message": "Operation completed"
-}
-```
-
-[Add more endpoints as needed...]
-
----
-
-### For Mobile Apps:
-
-#### App Flow Diagram
-
-![App Flow](docs/app-flow.png)
-*Explain the user flow through your application*
-
-#### Installation Guide
-
-**For Android (APK):**
-1. Download the APK from [Release Link]
-2. Enable "Install from Unknown Sources" in your device settings:
-   - Go to Settings > Security
-   - Enable "Unknown Sources"
-3. Open the downloaded APK file
-4. Follow the installation prompts
-5. Open the app and enjoy!
-
-**For iOS (IPA) - TestFlight:**
-1. Download TestFlight from the App Store
-2. Open this TestFlight link: [Your TestFlight Link]
-3. Click "Install" or "Accept"
-4. Wait for the app to install
-5. Open the app from your home screen
-
-**Building from Source:**
-```bash
-# For Android
-flutter build apk
-# or
-./gradlew assembleDebug
-
-# For iOS
-flutter build ios
-# or
-xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug
-```
-
----
-
-### For Hardware Projects:
-
-#### Bill of Materials (BOM)
-
-| Component | Quantity | Specifications | Price | Link/Source |
-|-----------|----------|----------------|-------|-------------|
-| Arduino Uno | 1 | ATmega328P, 16MHz | ₹450 | [Link] |
-| LED | 5 | Red, 5mm, 20mA | ₹5 each | [Link] |
-| Resistor | 5 | 220Ω, 1/4W | ₹1 each | [Link] |
-| Breadboard | 1 | 830 points | ₹100 | [Link] |
-| Jumper Wires | 20 | Male-to-Male | ₹50 | [Link] |
-| [Add more...] | | | | |
-
-**Total Estimated Cost:** ₹[Amount]
-
-#### Assembly Instructions
-
-**Step 1: Prepare Components**
-1. Gather all components listed in the BOM
-2. Check component specifications
-3. Prepare your workspace
-![Step 1](images/assembly-step1.jpg)
-*Caption: All components laid out*
-
-**Step 2: Build the Power Supply**
-1. Connect the power rails on the breadboard
-2. Connect Arduino 5V to breadboard positive rail
-3. Connect Arduino GND to breadboard negative rail
-![Step 2](images/assembly-step2.jpg)
-*Caption: Power connections completed*
-
-**Step 3: Add Components**
-1. Place LEDs on breadboard
-2. Connect resistors in series with LEDs
-3. Connect LED cathodes to GND
-4. Connect LED anodes to Arduino digital pins (2-6)
-![Step 3](images/assembly-step3.jpg)
-*Caption: LED circuit assembled*
-
-**Step 4: [Continue for all steps...]**
-
-**Final Assembly:**
-![Final Build](images/final-build.jpg)
-*Caption: Completed project ready for testing*
-
----
-
-### For Scripts/CLI Tools:
-
-#### Command Reference
-
-**Basic Usage:**
-```bash
-python script.py [options] [arguments]
-```
-
-**Available Commands:**
-- `command1 [args]` - Description of what command1 does
-- `command2 [args]` - Description of what command2 does
-- `command3 [args]` - Description of what command3 does
-
-**Options:**
-- `-h, --help` - Show help message and exit
-- `-v, --verbose` - Enable verbose output
-- `-o, --output FILE` - Specify output file path
-- `-c, --config FILE` - Specify configuration file
-- `--version` - Show version information
-
-**Examples:**
-
-```bash
-# Example 1: Basic usage
-python script.py input.txt
-
-# Example 2: With verbose output
-python script.py -v input.txt
-
-# Example 3: Specify output file
-python script.py -o output.txt input.txt
-
-# Example 4: Using configuration
-python script.py -c config.json --verbose input.txt
 ```
 
 #### Demo Output
@@ -360,26 +170,19 @@ python script.py -v --format json data.json
 
 ## Project Demo
 
+### Photo
+https://drive.google.com/drive/folders/14JI2f7BxntCG9-cHyPT0T-bz9L7MfzMn?usp=drive_link
+
 ### Video
-[Add your demo video link here - YouTube, Google Drive, etc.]
+https://drive.google.com/file/d/1gl2uPiZNtQ5EJQSeZZ8TZj8bjmuQyg7i/view?usp=sharing
 
-*Explain what the video demonstrates - key features, user flow, technical highlights*
 
-### Additional Demos
-[Add any extra demo materials/links - Live site, APK download, online demo, etc.]
-
----
 
 ## AI Tools Used (Optional - For Transparency Bonus)
 
-If you used AI tools during development, document them here for transparency:
 
-**Tool Used:** [e.g., GitHub Copilot, v0.dev, Cursor, ChatGPT, Claude]
+**Tool Used:** [ GitHub Copilot, ChatGPT, Claude]
 
-**Purpose:** [What you used it for]
-- Example: "Generated boilerplate React components"
-- Example: "Debugging assistance for async functions"
-- Example: "Code review and optimization suggestions"
 
 **Key Prompts Used:**
 - "Create a REST API endpoint for user authentication"
