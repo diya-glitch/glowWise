@@ -1,0 +1,2092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GlowWise — AI Skin Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&display=swap" rel="stylesheet">
+<style>
+/* ─── DESIGN TOKENS — Version B palette + Version A structure ─── */
+:root {
+  --cream: #faf7f4;
+  --blush: #f2d9d0;
+  --rose: #c97b6e;
+  --rose-hover: #b06860;
+  --deep: #2d1b16;
+  --mocha: #6b4035;
+  --gold: #c4a96a;
+  --sage: #d4e4d8;
+  --muted: #8a6a62;
+  --bg-card: #ffffff;
+  --border: rgba(242,217,208,0.7);
+  --border-strong: rgba(201,123,110,0.3);
+  --error: #c0392b;
+  --error-bg: #fdecea;
+  --success: #2d7a3a;
+  --success-bg: #e6f4ea;
+  --warn-bg: #fff3e0;
+  --warn: #b75e00;
+  --shadow: 0 2px 12px rgba(45,27,22,0.06);
+  --shadow-md: 0 6px 24px rgba(45,27,22,0.10);
+  --shadow-card: 0 4px 20px rgba(45,27,22,0.08);
+  --radius: 20px;
+  --radius-sm: 12px;
+  --radius-xs: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--cream);
+  min-height: 100vh;
+  overflow-x: hidden;
+  color: var(--deep);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Atmospheric background blobs from Version B */
+body::before {
+  content: '';
+  position: fixed; top: -200px; right: -200px;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(242,217,208,0.4) 0%, transparent 70%);
+  border-radius: 50%; z-index: 0; pointer-events: none;
+}
+body::after {
+  content: '';
+  position: fixed; bottom: -150px; left: -150px;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(196,169,106,0.12) 0%, transparent 70%);
+  border-radius: 50%; z-index: 0; pointer-events: none;
+}
+
+a { color: inherit; text-decoration: none; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--blush); border-radius: 4px; }
+
+/* ─── APP ─── */
+.app { position: relative; z-index: 1; min-height: 100vh; display: flex; flex-direction: column; }
+
+/* ─── HEADER ─── */
+.header {
+  height: 68px;
+  padding: 0 36px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: rgba(250,247,244,0.92);
+  backdrop-filter: blur(12px);
+  position: sticky; top: 0; z-index: 200;
+}
+.logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.75rem; font-weight: 700;
+  color: var(--mocha); letter-spacing: -0.5px;
+}
+.logo span { color: var(--rose); font-style: italic; }
+
+/* Progress in header — Version A feature */
+.header-center { display: flex; align-items: center; gap: 8px; }
+.prog-step {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 0.74rem; font-weight: 500; color: var(--muted);
+}
+.prog-bar-track { width: 80px; height: 2px; background: var(--blush); border-radius: 2px; overflow: hidden; }
+.prog-bar-fill { height: 100%; background: var(--rose); transition: width 0.4s ease; border-radius: 2px; }
+
+.header-right { display: flex; align-items: center; gap: 12px; }
+
+/* User chip */
+.user-chip {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-card); border: 1.5px solid var(--border);
+  border-radius: 100px; padding: 5px 14px 5px 5px;
+  cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: var(--shadow);
+}
+.user-chip:hover { border-color: var(--rose); box-shadow: var(--shadow-md); }
+.user-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--rose), var(--mocha));
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 0.7rem; font-weight: 700;
+}
+.user-name { font-size: 0.82rem; font-weight: 600; color: var(--deep); }
+
+/* Hamburger — Version A feature */
+.hamburger-btn {
+  width: 38px; height: 38px; border: 1.5px solid var(--border);
+  border-radius: 50%; background: var(--bg-card);
+  cursor: pointer; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: var(--shadow);
+}
+.hamburger-btn:hover { border-color: var(--rose); box-shadow: var(--shadow-md); }
+.hamburger-btn span { display: block; width: 15px; height: 1.5px; background: var(--mocha); border-radius: 2px; }
+
+/* Side panel — Version A feature */
+.side-overlay {
+  position: fixed; inset: 0; background: rgba(45,27,22,0.35);
+  z-index: 300; opacity: 0; pointer-events: none; transition: opacity 0.25s;
+}
+.side-overlay.open { opacity: 1; pointer-events: all; }
+.side-panel {
+  position: fixed; top: 0; right: 0; bottom: 0; width: 280px;
+  background: var(--bg-card); border-left: 1px solid var(--border);
+  z-index: 301; transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto; display: flex; flex-direction: column;
+  box-shadow: -8px 0 40px rgba(45,27,22,0.12);
+}
+.side-panel.open { transform: translateX(0); }
+.side-panel-header {
+  padding: 20px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.side-panel-logo { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 700; color: var(--mocha); }
+.side-panel-logo span { color: var(--rose); font-style: italic; }
+.side-close {
+  width: 32px; height: 32px; border: 1.5px solid var(--border);
+  border-radius: 50%; background: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; color: var(--muted); transition: border-color 0.2s, color 0.2s;
+}
+.side-close:hover { border-color: var(--rose); color: var(--rose); }
+.side-nav { padding: 12px 0; flex: 1; }
+.side-nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 20px; font-size: 0.88rem; font-weight: 500;
+  color: var(--muted); cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.side-nav-item:hover { background: rgba(242,217,208,0.4); color: var(--rose); }
+.side-nav-item.active { color: var(--rose); background: rgba(242,217,208,0.4); }
+.side-nav-section {
+  padding: 6px 20px 4px;
+  font-size: 0.67rem; font-weight: 600; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--muted); opacity: 0.6; margin-top: 8px;
+}
+.side-nav-sub { padding-left: 44px !important; font-size: 0.83rem !important; }
+.side-divider { height: 1px; background: var(--border); margin: 6px 0; }
+
+/* ─── TOAST ─── */
+.toast {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(100px);
+  background: var(--deep); color: white; padding: 11px 24px;
+  border-radius: 100px; font-size: 0.87rem; font-weight: 500;
+  z-index: 9999; transition: transform 0.35s ease; white-space: nowrap;
+  box-shadow: var(--shadow-md); pointer-events: none;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.success { background: var(--success); }
+.toast.error-toast { background: var(--error); }
+
+/* ─── PAGES ─── */
+.page { display: none; flex: 1; padding: 40px 36px 80px; animation: fadeUp 0.4s ease forwards; }
+.page.active { display: flex; flex-direction: column; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-7px)} 60%{transform:translateX(7px)} 80%{transform:translateX(-3px)} }
+
+.page-inner { max-width: 620px; margin: 0 auto; width: 100%; }
+
+/* Typography */
+.step-label {
+  font-size: 0.69rem; font-weight: 600; letter-spacing: 2.5px;
+  text-transform: uppercase; color: var(--rose); margin-bottom: 8px;
+}
+.page-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  line-height: 1.1; color: var(--deep); margin-bottom: 10px; font-weight: 700;
+}
+.page-title em { font-style: italic; color: var(--rose); }
+.page-subtitle {
+  color: var(--muted); font-size: 0.93rem; font-weight: 300;
+  margin-bottom: 32px; line-height: 1.7; max-width: 500px;
+}
+
+/* ─── SEARCH BAR — Version A feature with Version B styling ─── */
+.search-filter-row { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+.search-wrap { flex: 1; position: relative; }
+.search-wrap svg { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.search-input {
+  width: 100%; padding: 12px 15px 12px 44px;
+  border: 1.5px solid var(--border); border-radius: 100px;
+  font-family: inherit; font-size: 0.88rem; color: var(--deep);
+  background: var(--bg-card); outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: var(--shadow);
+}
+.search-input:focus { border-color: var(--rose); box-shadow: 0 0 0 3px rgba(201,123,110,0.12); }
+.search-input::placeholder { color: #c4aaa4; }
+.filter-btn {
+  height: 44px; padding: 0 18px;
+  border: 1.5px solid var(--border); border-radius: 100px;
+  background: var(--bg-card); cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.82rem; font-weight: 500; color: var(--muted);
+  transition: border-color 0.2s, color 0.2s; font-family: inherit;
+  box-shadow: var(--shadow);
+}
+.filter-btn:hover { border-color: var(--rose); color: var(--rose); }
+
+/* ─── LOGIN ─── */
+.login-wrap { max-width: 420px; margin: 0 auto; padding: 48px 20px; display: flex; flex-direction: column; align-items: center; }
+.login-logo { font-family: 'Cormorant Garamond', serif; font-size: 3rem; font-weight: 700; color: var(--mocha); }
+.login-logo span { color: var(--rose); font-style: italic; }
+.login-tagline { color: var(--muted); font-size: 0.9rem; margin-bottom: 36px; margin-top: 4px; font-weight: 300; text-align: center; }
+.login-card {
+  background: var(--bg-card); border-radius: 24px; padding: 36px; width: 100%;
+  box-shadow: 0 8px 40px rgba(45,27,22,0.08); border: 1px solid var(--border);
+}
+.login-tabs {
+  display: flex; margin-bottom: 28px;
+  background: var(--cream); border-radius: 12px; padding: 4px;
+}
+.login-tab {
+  flex: 1; padding: 10px; text-align: center; cursor: pointer;
+  border-radius: 9px; font-size: 0.87rem; font-weight: 500;
+  color: var(--muted); transition: all 0.2s;
+}
+.login-tab.active { background: var(--bg-card); color: var(--deep); box-shadow: 0 2px 8px rgba(45,27,22,0.07); font-weight: 600; }
+
+/* ─── FIELDS ─── */
+.field-group { margin-bottom: 18px; }
+.field-label { font-weight: 600; font-size: 0.8rem; letter-spacing: 0.4px; color: var(--mocha); margin-bottom: 7px; display: block; }
+.req { color: var(--rose); }
+.field-input {
+  width: 100%; padding: 12px 15px;
+  border: 1.5px solid var(--blush); border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 0.9rem;
+  color: var(--deep); background: var(--bg-card); outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.field-input:focus { border-color: var(--rose); box-shadow: 0 0 0 3px rgba(201,123,110,0.10); }
+.field-input::placeholder { color: #c4aaa4; }
+.field-input.error-field { border-color: var(--error); box-shadow: 0 0 0 3px rgba(192,57,43,0.08); }
+.error-msg { color: var(--error); font-size: 0.76rem; margin-top: 5px; display: none; font-weight: 500; }
+.error-msg.show { display: block; }
+
+/* Buttons */
+.btn-primary {
+  width: 100%; padding: 14px; background: var(--deep); color: white;
+  border: none; border-radius: var(--radius-sm); font-family: inherit;
+  font-size: 0.92rem; font-weight: 600; cursor: pointer;
+  transition: all 0.25s; margin-top: 6px;
+}
+.btn-primary:hover { background: var(--mocha); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(45,27,22,0.18); }
+.btn-guest {
+  width: 100%; padding: 12px; background: var(--blush); color: var(--mocha);
+  border: 1.5px solid var(--blush); border-radius: var(--radius-sm); font-family: inherit;
+  font-size: 0.88rem; font-weight: 500; cursor: pointer; transition: all 0.2s;
+}
+.btn-guest:hover { border-color: var(--rose); color: var(--rose); }
+.divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: var(--muted); font-size: 0.76rem; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--blush); }
+
+/* ─── OPTION CARDS ─── */
+.option-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 28px; }
+.option-card {
+  background: var(--bg-card); border: 2px solid transparent;
+  border-radius: 18px; padding: 20px 14px; cursor: pointer;
+  transition: all 0.25s ease; text-align: center;
+  box-shadow: 0 2px 12px rgba(45,27,22,0.05);
+  position: relative; overflow: hidden;
+}
+.option-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(242,217,208,0.5), transparent);
+  opacity: 0; transition: opacity 0.25s;
+}
+.option-card:hover { transform: translateY(-3px); box-shadow: 0 8px 22px rgba(45,27,22,0.10); }
+.option-card:hover::before { opacity: 1; }
+.option-card.selected { border-color: var(--rose); background: linear-gradient(135deg, #fff5f3, white); box-shadow: 0 8px 26px rgba(201,123,110,0.18); }
+.option-card.selected::before { opacity: 1; }
+.card-icon {
+  width: 42px; height: 42px; border-radius: 11px;
+  margin: 0 auto 11px; display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; background: var(--cream); color: var(--mocha);
+}
+.option-card.selected .card-icon { background: rgba(201,123,110,0.12); color: var(--rose); }
+.option-label { font-weight: 600; font-size: 0.86rem; color: var(--deep); }
+.option-desc { font-size: 0.72rem; color: var(--muted); margin-top: 4px; }
+.option-card.selected .option-label::after { content: '  ✓'; color: var(--rose); }
+
+/* ─── VALIDATION BANNER ─── */
+.field-error-banner {
+  background: var(--error-bg); border: 1.5px solid rgba(192,57,43,0.2);
+  border-radius: var(--radius-sm); padding: 11px 15px; color: var(--error);
+  font-size: 0.83rem; font-weight: 500; margin-bottom: 18px;
+  display: none; align-items: center; gap: 8px;
+}
+.field-error-banner.show { display: flex; }
+
+/* ─── QUIZ — Version A logic + Version B styling ─── */
+.quiz-question { margin-bottom: 22px; }
+.quiz-q {
+  font-weight: 600; font-size: 0.92rem; color: var(--deep); margin-bottom: 11px;
+  padding: 12px 16px; background: var(--bg-card); border-radius: var(--radius-sm);
+  border-left: 4px solid var(--rose); box-shadow: var(--shadow);
+}
+.quiz-options { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 4px; }
+.quiz-opt {
+  background: var(--bg-card); border: 1.5px solid var(--blush);
+  border-radius: 100px; padding: 7px 16px; cursor: pointer;
+  font-size: 0.82rem; font-weight: 500; color: var(--muted);
+  transition: all 0.2s;
+}
+.quiz-opt:hover { border-color: var(--rose); color: var(--rose); }
+.quiz-opt.selected { background: var(--rose); border-color: var(--rose); color: white; }
+
+/* ─── DIRECT PICK BOX ─── */
+.direct-pick-box {
+  background: linear-gradient(135deg, #fff5f3, white);
+  border-radius: 16px; padding: 18px; margin-top: 12px;
+  border: 1.5px solid var(--blush);
+}
+.direct-pick-label { font-weight: 600; font-size: 0.83rem; color: var(--mocha); margin-bottom: 13px; }
+
+/* ─── TAG INPUT ─── */
+.tag-input-wrap {
+  display: flex; flex-wrap: wrap; gap: 7px; padding: 10px 12px;
+  border: 1.5px solid var(--blush); border-radius: var(--radius-sm);
+  background: var(--bg-card); min-height: 50px; cursor: text;
+  transition: border-color 0.2s;
+}
+.tag-input-wrap:focus-within { border-color: var(--rose); box-shadow: 0 0 0 3px rgba(201,123,110,0.08); }
+.tag {
+  background: var(--blush); color: var(--mocha);
+  border-radius: 100px; padding: 3px 12px;
+  font-size: 0.79rem; font-weight: 500;
+  display: flex; align-items: center; gap: 5px;
+}
+.tag-x { cursor: pointer; color: var(--rose); font-size: 1rem; line-height: 1; }
+.tag-x:hover { opacity: 0.7; }
+.tag-real-input {
+  border: none; outline: none; font-family: inherit;
+  font-size: 0.87rem; flex: 1; min-width: 110px;
+  color: var(--deep); background: transparent; padding: 2px 3px;
+}
+.tag-real-input::placeholder { color: #c4aaa4; }
+.hint-text { font-size: 0.74rem; color: var(--muted); margin-top: 5px; }
+
+/* ─── NAV ROW ─── */
+.nav-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 28px; }
+.btn-next {
+  background: var(--deep); color: white; border: none;
+  border-radius: 100px; padding: 13px 36px;
+  font-family: inherit; font-size: 0.92rem; font-weight: 600; cursor: pointer;
+  transition: all 0.25s; box-shadow: 0 4px 14px rgba(45,27,22,0.18);
+}
+.btn-next:hover { background: var(--mocha); transform: translateY(-2px); box-shadow: 0 8px 22px rgba(45,27,22,0.22); }
+.btn-skip {
+  background: transparent; color: var(--muted); border: none;
+  font-family: inherit; font-size: 0.86rem; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px;
+  transition: color 0.2s; padding: 8px;
+}
+.btn-skip:hover { color: var(--rose); }
+.btn-back {
+  background: transparent; color: var(--muted);
+  border: 1.5px solid var(--blush); border-radius: 100px;
+  padding: 11px 24px; font-family: inherit; font-size: 0.86rem;
+  font-weight: 500; cursor: pointer; transition: all 0.2s;
+}
+.btn-back:hover { border-color: var(--rose); color: var(--rose); }
+.nav-right { display: flex; align-items: center; gap: 10px; }
+
+/* ─── LOADING ─── */
+.loading-screen {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; flex: 1; gap: 22px;
+  padding: 60px; text-align: center;
+}
+.loading-ring {
+  width: 68px; height: 68px; border-radius: 50%;
+  border: 3px solid var(--blush); border-top-color: var(--rose);
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; color: var(--deep); font-weight: 600; }
+.loading-sub { color: var(--muted); font-size: 0.86rem; font-weight: 300; }
+
+/* ─── SUMMARY BANNER — Version A intelligence + Version B dark gradient ─── */
+.summary-banner {
+  background: linear-gradient(135deg, var(--deep) 0%, var(--mocha) 100%);
+  border-radius: var(--radius); padding: 22px 26px; color: white;
+  margin-bottom: 22px; display: flex; gap: 18px; align-items: center;
+  animation: fadeUp 0.5s ease; box-shadow: 0 6px 24px rgba(45,27,22,0.18);
+}
+.sb-icon-wrap {
+  width: 50px; height: 50px; border-radius: 13px; flex-shrink: 0;
+  background: rgba(255,255,255,0.12); display: flex; align-items: center;
+  justify-content: center; font-size: 1.4rem;
+}
+.sb-label { font-size: 0.68rem; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.7; margin-bottom: 3px; }
+.sb-title { font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; font-weight: 600; margin-bottom: 8px; }
+.sb-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.sb-tag {
+  background: rgba(255,255,255,0.15); border-radius: 100px;
+  padding: 3px 11px; font-size: 0.73rem; font-weight: 500; color: white;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+/* ─── RESULT CARDS — Version A intelligence + Version B layout ─── */
+.result-grid { display: grid; gap: 22px; margin-bottom: 24px; }
+.result-card {
+  background: var(--bg-card); border-radius: var(--radius);
+  box-shadow: 0 4px 20px rgba(45,27,22,0.07); overflow: hidden;
+  border: 1px solid var(--border);
+  animation: fadeUp 0.5s ease both; transition: transform 0.2s, box-shadow 0.2s;
+}
+.result-card:hover { transform: translateY(-4px); box-shadow: 0 12px 36px rgba(45,27,22,0.12); }
+.result-card:nth-child(1) { animation-delay: 0.07s; }
+.result-card:nth-child(2) { animation-delay: 0.14s; }
+.result-card:nth-child(3) { animation-delay: 0.21s; }
+
+/* Product hero image */
+.rc-image-wrap {
+  width: 100%; height: 230px; overflow: hidden;
+  background: linear-gradient(135deg, var(--cream), var(--blush));
+  position: relative; display: flex; align-items: center; justify-content: center;
+}
+.rc-image-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+.result-card:hover .rc-image-wrap img { transform: scale(1.04); }
+
+/* Thumbnail strip — Version A feature */
+.rc-img-strip {
+  position: absolute; right: 12px; top: 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.rc-img-thumb {
+  width: 48px; height: 48px; border-radius: 10px;
+  overflow: hidden; border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(45,27,22,0.14); cursor: pointer;
+  background: var(--cream);
+}
+.rc-img-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+.rc-fav-btn {
+  position: absolute; top: 12px; left: 12px;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: white; border: none;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; transition: all 0.2s; color: var(--muted);
+  box-shadow: 0 2px 10px rgba(45,27,22,0.12);
+}
+.rc-fav-btn:hover, .rc-fav-btn.faved { color: var(--rose); transform: scale(1.1); }
+
+.rc-body { padding: 20px 22px 24px; }
+.rc-brand { font-size: 0.72rem; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase; color: var(--rose); margin-bottom: 5px; }
+.rc-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+.rc-name { font-family: 'Cormorant Garamond', serif; font-size: 1.18rem; font-weight: 700; color: var(--deep); line-height: 1.25; }
+
+/* Score pill — Version A intelligence displayed in Version B style */
+.score-pill {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--cream); border-radius: 100px;
+  padding: 5px 12px; flex-shrink: 0;
+}
+.score-num { font-weight: 700; font-size: 0.86rem; color: var(--deep); }
+.score-stars { color: var(--gold); font-size: 0.72rem; letter-spacing: -0.5px; }
+
+.rc-price { font-size: 1rem; font-weight: 700; color: var(--deep); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.rc-price-from { font-size: 0.78rem; font-weight: 300; color: var(--muted); }
+
+/* Reasoning — Version A AI text in Version B styling */
+.rc-reason {
+  font-size: 0.82rem; color: var(--muted); line-height: 1.6;
+  margin: 10px 0 14px; font-style: italic;
+  border-left: 3px solid var(--blush); padding-left: 12px;
+}
+
+/* Risk badges — Version A intelligence */
+.risk-badge {
+  display: inline-flex; align-items: center; padding: 4px 12px;
+  border-radius: 100px; font-size: 0.72rem; font-weight: 700;
+  letter-spacing: 0.4px; text-transform: uppercase;
+}
+.risk-low { background: var(--success-bg); color: var(--success); }
+.risk-moderate { background: var(--warn-bg); color: var(--warn); }
+.risk-high { background: var(--error-bg); color: var(--error); }
+
+.rc-actions { display: flex; gap: 10px; margin-top: 16px; align-items: center; flex-wrap: wrap; }
+.rc-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--deep); color: white;
+  border-radius: 100px; padding: 10px 22px;
+  font-size: 0.83rem; font-weight: 600; text-decoration: none;
+  transition: all 0.2s;
+}
+.rc-link:hover { background: var(--mocha); transform: translateY(-1px); }
+.rc-link-secondary {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 1.5px solid var(--blush); color: var(--mocha);
+  border-radius: 100px; padding: 9px 18px;
+  font-size: 0.82rem; font-weight: 500; text-decoration: none;
+  cursor: pointer; transition: all 0.2s;
+  background: transparent; font-family: inherit;
+}
+.rc-link-secondary:hover { border-color: var(--rose); color: var(--rose); }
+
+/* ─── REVIEWS — Version A feature with Version B palette ─── */
+.reviews-section { border-top: 1px solid var(--blush); margin-top: 18px; padding-top: 16px; }
+.reviews-title { font-size: 0.74rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--mocha); margin-bottom: 12px; }
+.review-item { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(242,217,208,0.5); }
+.review-item:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.review-head { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.reviewer-avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--blush), var(--sage));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.66rem; font-weight: 700; color: var(--mocha); flex-shrink: 0;
+}
+.reviewer-name { font-size: 0.79rem; font-weight: 600; color: var(--deep); }
+.review-stars { color: var(--gold); font-size: 0.68rem; }
+.review-text { font-size: 0.77rem; color: var(--muted); line-height: 1.55; padding-left: 34px; }
+.add-review-wrap { margin-top: 14px; border-top: 1px dashed var(--blush); padding-top: 12px; }
+.add-review-label { font-size: 0.76rem; font-weight: 600; color: var(--mocha); margin-bottom: 7px; }
+.add-review-input {
+  width: 100%; padding: 9px 12px; border: 1.5px solid var(--blush);
+  border-radius: var(--radius-xs); font-family: inherit; font-size: 0.81rem;
+  color: var(--deep); outline: none; resize: none; height: 58px;
+  transition: border-color 0.2s; background: var(--cream);
+}
+.add-review-input:focus { border-color: var(--rose); background: var(--bg-card); box-shadow: 0 0 0 3px rgba(201,123,110,0.08); }
+.add-review-input::placeholder { color: #c4aaa4; }
+.add-review-row { display: flex; gap: 8px; margin-top: 7px; align-items: center; }
+.star-picker { display: flex; gap: 2px; }
+.star-btn { background: none; border: none; font-size: 1.1rem; cursor: pointer; color: #ddd; transition: color 0.1s; }
+.star-btn.active { color: var(--gold); }
+.btn-submit-review {
+  background: var(--rose); color: white; border: none;
+  border-radius: 100px; padding: 7px 18px; font-family: inherit;
+  font-size: 0.79rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.btn-submit-review:hover { background: var(--rose-hover); }
+
+/* ─── RESULTS ACTIONS ─── */
+.results-actions { display: flex; gap: 10px; margin-bottom: 22px; flex-wrap: wrap; align-items: center; }
+.btn-outline {
+  background: var(--bg-card); border: 1.5px solid var(--blush);
+  border-radius: 100px; padding: 9px 20px; font-family: inherit;
+  font-size: 0.82rem; font-weight: 500; color: var(--mocha); cursor: pointer;
+  transition: all 0.2s; box-shadow: var(--shadow);
+}
+.btn-outline:hover { border-color: var(--rose); color: var(--rose); }
+
+/* ─── FILTER PANEL — Version A feature ─── */
+.filter-panel {
+  display: none; background: var(--bg-card); border: 1.5px solid var(--border);
+  border-radius: var(--radius); padding: 18px; margin-bottom: 22px;
+  animation: fadeUp 0.25s ease; box-shadow: var(--shadow);
+}
+.filter-panel.open { display: block; }
+.filter-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+.filter-group { flex: 1; min-width: 140px; }
+.filter-group label { display: block; font-size: 0.73rem; font-weight: 600; color: var(--mocha); margin-bottom: 6px; letter-spacing: 0.5px; text-transform: uppercase; }
+.filter-select {
+  width: 100%; padding: 9px 12px; border: 1.5px solid var(--blush);
+  border-radius: var(--radius-xs); font-family: inherit; font-size: 0.84rem;
+  color: var(--deep); background: var(--cream); outline: none;
+  transition: border-color 0.2s; cursor: pointer;
+}
+.filter-select:focus { border-color: var(--rose); }
+.btn-filter-apply {
+  background: var(--rose); color: white; border: none;
+  border-radius: 100px; padding: 9px 20px; font-family: inherit;
+  font-size: 0.83rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+  transition: background 0.2s; align-self: flex-end;
+}
+.btn-filter-apply:hover { background: var(--rose-hover); }
+
+/* ─── PROFILE — Version A feature + Version B styling ─── */
+.profile-header-row {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 28px;
+  padding: 20px 22px; background: var(--bg-card);
+  border-radius: var(--radius); box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+}
+.profile-big-avatar {
+  width: 58px; height: 58px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--rose), var(--mocha));
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 1.3rem; font-weight: 700;
+}
+.profile-name { font-family: 'Cormorant Garamond', serif; font-size: 1.35rem; font-weight: 700; color: var(--deep); }
+.profile-email { font-size: 0.82rem; color: var(--muted); margin-top: 1px; }
+.btn-logout {
+  margin-left: auto; background: transparent; border: 1.5px solid var(--blush);
+  border-radius: 100px; padding: 8px 20px; cursor: pointer;
+  font-family: inherit; font-size: 0.82rem; font-weight: 500;
+  color: var(--muted); transition: all 0.2s; white-space: nowrap;
+}
+.btn-logout:hover { border-color: var(--error); color: var(--error); }
+
+/* Section tabs — Version A feature */
+.section-tabs {
+  display: flex; margin-bottom: 22px;
+  background: var(--bg-card); border-radius: 14px; padding: 4px;
+  box-shadow: var(--shadow);
+}
+.section-tab {
+  flex: 1; padding: 10px 6px; cursor: pointer;
+  font-size: 0.83rem; font-weight: 500; color: var(--muted);
+  border-radius: 11px; text-align: center; transition: all 0.2s;
+}
+.section-tab.active { background: var(--deep); color: white; font-weight: 600; }
+.tab-panel { display: none; animation: fadeUp 0.3s ease; }
+.tab-panel.active { display: block; }
+
+/* History items — Version A feature */
+.history-item {
+  background: var(--bg-card); border-radius: 14px; padding: 14px 17px;
+  margin-bottom: 10px; display: flex; align-items: center; gap: 13px;
+  box-shadow: var(--shadow); border: 1px solid var(--border);
+  transition: transform 0.2s;
+}
+.history-item:hover { transform: translateX(3px); }
+.history-icon {
+  width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+  background: var(--cream); display: flex; align-items: center;
+  justify-content: center; font-size: 1.1rem; color: var(--rose);
+}
+.history-text { flex: 1; min-width: 0; }
+.history-title { font-weight: 600; font-size: 0.87rem; color: var(--deep); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-sub { font-size: 0.75rem; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-date { font-size: 0.72rem; color: var(--muted); font-weight: 300; white-space: nowrap; text-align: right; }
+.history-badge {
+  background: var(--blush); color: var(--mocha);
+  border-radius: 100px; padding: 3px 10px;
+  font-size: 0.72rem; font-weight: 600; white-space: nowrap; flex-shrink: 0;
+}
+
+/* Favorites — Version A feature */
+.fav-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+.fav-card {
+  background: var(--bg-card); border-radius: 16px; overflow: hidden;
+  box-shadow: var(--shadow); border: 1px solid var(--border);
+  transition: all 0.2s;
+}
+.fav-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.fav-img { width: 100%; height: 110px; object-fit: cover; background: var(--blush); }
+.fav-info { padding: 12px; }
+.fav-top { display: flex; align-items: flex-start; justify-content: space-between; }
+.fav-name { font-weight: 600; font-size: 0.82rem; color: var(--deep); margin-bottom: 3px; line-height: 1.3; flex: 1; }
+.fav-price { font-size: 0.76rem; color: var(--rose); font-weight: 600; }
+.fav-rm { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 1rem; padding: 0; transition: color 0.2s; flex-shrink: 0; }
+.fav-rm:hover { color: var(--error); }
+
+.empty-state { text-align: center; padding: 48px 20px; color: var(--muted); font-size: 0.88rem; font-weight: 300; }
+.empty-icon { font-size: 2.2rem; margin-bottom: 12px; opacity: 0.3; }
+.scroll-area { max-height: 54vh; overflow-y: auto; padding-right: 4px; }
+.scroll-area::-webkit-scrollbar { width: 3px; }
+.scroll-area::-webkit-scrollbar-thumb { background: var(--rose); opacity: 0.5; }
+
+/* Hero trust badges */
+.trust-badges { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.trust-badge {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 0.8rem; color: var(--muted); font-weight: 400;
+}
+.trust-check {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: rgba(201,123,110,0.12); display: flex; align-items: center;
+  justify-content: center; font-size: 0.68rem; color: var(--rose); flex-shrink: 0;
+}
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 600px) {
+  .header { padding: 0 18px; }
+  .page { padding: 24px 18px 60px; }
+  .option-grid { grid-template-columns: 1fr 1fr; }
+  #genderGrid { grid-template-columns: 1fr 1fr !important; }
+  .summary-banner { flex-direction: column; align-items: flex-start; }
+  .fav-grid { grid-template-columns: 1fr; }
+  .login-card { padding: 26px 18px; }
+  .profile-header-row { flex-wrap: wrap; }
+  .filter-row { flex-direction: column; }
+  .header-center { display: none; }
+  .rc-image-wrap { height: 200px; }
+  .rc-img-strip { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- SIDE OVERLAY -->
+<div class="side-overlay" id="sideOverlay" onclick="closeSidePanel()"></div>
+
+<!-- SIDE PANEL -->
+<div class="side-panel" id="sidePanel">
+  <div class="side-panel-header">
+    <div class="side-panel-logo">glow<span>wise</span></div>
+    <button class="side-close" onclick="closeSidePanel()">✕</button>
+  </div>
+  <div class="side-nav">
+    <a class="side-nav-item active" onclick="closeSidePanel(); showPage(1);">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="5"/><path d="M3 21a9 9 0 0 1 18 0"/></svg>
+      Skin Analysis
+    </a>
+    <div class="side-divider"></div>
+    <div class="side-nav-section">Skincare</div>
+    <a class="side-nav-item side-nav-sub" onclick="closeSidePanel(); openCategory('cleanser')">Cleanser</a>
+    <a class="side-nav-item side-nav-sub" onclick="closeSidePanel(); openCategory('sunscreen')">Sunscreen</a>
+    <a class="side-nav-item side-nav-sub" onclick="closeSidePanel(); openCategory('serum')">Serum</a>
+    <a class="side-nav-item side-nav-sub" onclick="closeSidePanel(); openCategory('moisturizer')">Moisturizer</a>
+    <div class="side-divider"></div>
+    <div class="side-nav-section">Body Care</div>
+    <a class="side-nav-item side-nav-sub" onclick="closeSidePanel(); openCategory('bodywash')">Body Wash</a>
+    <a class="side-nav-item side-nav-sub" onclick="closeSidePanel(); openCategory('lotion')">Lotion</a>
+    <div class="side-divider"></div>
+    <a class="side-nav-item" onclick="closeSidePanel(); openProfile();">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      My History &amp; Saved
+    </a>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">glow<span>wise</span></div>
+  <div class="header-center" id="headerCenter"></div>
+  <div class="header-right">
+    <div class="user-chip" id="userChip" style="display:none;" onclick="openProfile()">
+      <div class="user-avatar" id="userAvatarMini"></div>
+      <span class="user-name" id="userNameChip"></span>
+    </div>
+    <button class="hamburger-btn" onclick="openSidePanel()">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- ════════════════════════════════════
+     PAGE 0: LOGIN / SIGN UP
+════════════════════════════════════ -->
+<div class="page active" id="page-0">
+  <div class="login-wrap">
+    <div class="login-logo">glow<span>wise</span></div>
+    <div class="login-tagline">AI skin analysis. Product recommendations that fit <em>you</em>.</div>
+    <div class="login-card">
+      <div class="login-tabs">
+        <div class="login-tab active" id="tab-signin" onclick="switchAuthTab('signin')">Sign In</div>
+        <div class="login-tab" id="tab-signup" onclick="switchAuthTab('signup')">Create Account</div>
+      </div>
+      <div id="form-signin">
+        <div class="field-group">
+          <label class="field-label">Email Address</label>
+          <input type="email" class="field-input" id="signin-email" placeholder="you@example.com">
+          <div class="error-msg" id="err-signin-email">Please enter a valid email.</div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Password</label>
+          <input type="password" class="field-input" id="signin-pass" placeholder="••••••••">
+          <div class="error-msg" id="err-signin-pass">Password is required.</div>
+        </div>
+        <button class="btn-primary" onclick="doSignIn()">Sign In →</button>
+        <div class="divider">or</div>
+        <button class="btn-guest" onclick="doGuest()">Continue as Guest</button>
+      </div>
+      <div id="form-signup" style="display:none;">
+        <div class="field-group">
+          <label class="field-label">Full Name</label>
+          <input type="text" class="field-input" id="signup-name" placeholder="Your name">
+          <div class="error-msg" id="err-signup-name">Name is required.</div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Email Address</label>
+          <input type="email" class="field-input" id="signup-email" placeholder="you@example.com">
+          <div class="error-msg" id="err-signup-email">Please enter a valid email.</div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Password</label>
+          <input type="password" class="field-input" id="signup-pass" placeholder="Min. 6 characters">
+          <div class="error-msg" id="err-signup-pass">Password must be at least 6 characters.</div>
+        </div>
+        <button class="btn-primary" onclick="doSignUp()">Create Account →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     PAGE 1: HERO + GENDER + AGE
+════════════════════════════════════ -->
+<div class="page" id="page-1">
+  <div class="page-inner">
+    <div style="margin-bottom:40px;padding-bottom:32px;border-bottom:1px solid var(--border);">
+      <div class="step-label">Skin Analysis</div>
+      <h1 class="page-title" style="font-size:clamp(2.2rem,5.5vw,3.6rem);margin-bottom:14px;">Personalized Skincare<br><em>built for you</em></h1>
+      <p class="page-subtitle" style="margin-bottom:24px;">Answer a few questions and we'll analyze your skin profile to surface products that actually suit you — no guesswork, no generic recommendations.</p>
+      <div class="trust-badges">
+        <div class="trust-badge"><span class="trust-check">✓</span> No product sales</div>
+        <div class="trust-badge"><span class="trust-check">✓</span> External links only</div>
+        <div class="trust-badge"><span class="trust-check">✓</span> Allergy filtering</div>
+      </div>
+    </div>
+
+    <div class="step-label">Step 1 of 5</div>
+    <h2 style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:700;margin-bottom:8px;color:var(--deep);">Basic Information</h2>
+    <p class="page-subtitle" style="margin-bottom:24px;">Both fields are required to personalize your analysis.</p>
+
+    <div class="field-error-banner" id="gender-error-banner">
+      <span>⚠</span>&nbsp; Please select your gender and enter your age to continue.
+    </div>
+    <div class="field-label" style="margin-bottom:10px;">Gender <span class="req">*</span></div>
+    <div class="option-grid" id="genderGrid" style="grid-template-columns:repeat(4,1fr);">
+      <div class="option-card" data-val="female" onclick="selectOne('genderGrid',this,'gender')">
+        <div class="card-icon" style="font-size:1rem;">♀</div>
+        <div class="option-label">She / Her</div>
+        <div class="option-desc">Female</div>
+      </div>
+      <div class="option-card" data-val="male" onclick="selectOne('genderGrid',this,'gender')">
+        <div class="card-icon" style="font-size:1rem;">♂</div>
+        <div class="option-label">He / Him</div>
+        <div class="option-desc">Male</div>
+      </div>
+      <div class="option-card" data-val="nonbinary" onclick="selectOne('genderGrid',this,'gender')">
+        <div class="card-icon" style="font-size:0.9rem;">⚧</div>
+        <div class="option-label">They / Them</div>
+        <div class="option-desc">Non-binary</div>
+      </div>
+      <div class="option-card" data-val="prefer_not" onclick="selectOne('genderGrid',this,'gender')">
+        <div class="card-icon" style="font-size:1.1rem;">○</div>
+        <div class="option-label">Prefer Not</div>
+        <div class="option-desc">Private</div>
+      </div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Age <span class="req">*</span></label>
+      <input type="number" class="field-input" id="ageInput" placeholder="e.g. 28" min="13" max="90" style="max-width:160px;">
+      <div class="error-msg" id="err-age">Please enter a valid age between 13 and 90.</div>
+    </div>
+    <div class="nav-row">
+      <div></div>
+      <button class="btn-next" id="btnNext1" onclick="goNextPage1()">Continue →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     PAGE 2: SKIN TYPE QUIZ
+════════════════════════════════════ -->
+<div class="page" id="page-2">
+  <div class="page-inner">
+    <div class="step-label">Step 2 of 5</div>
+    <h1 class="page-title">Identify your <em>skin type</em></h1>
+    <p class="page-subtitle">Answer the questions below, or select your skin type directly if you already know it.</p>
+    <div class="scroll-area">
+      <div class="quiz-question">
+        <div class="quiz-q">Q1. How does your skin feel a few hours after cleansing?</div>
+        <div class="quiz-options">
+          <div class="quiz-opt" data-q="1" data-type="oily" onclick="selectQuiz(this)">Shiny &amp; greasy</div>
+          <div class="quiz-opt" data-q="1" data-type="dry" onclick="selectQuiz(this)">Tight &amp; flaky</div>
+          <div class="quiz-opt" data-q="1" data-type="combination" onclick="selectQuiz(this)">Oily T-zone, dry cheeks</div>
+          <div class="quiz-opt" data-q="1" data-type="normal" onclick="selectQuiz(this)">Comfortable &amp; balanced</div>
+        </div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q">Q2. How frequently do you experience breakouts?</div>
+        <div class="quiz-options">
+          <div class="quiz-opt" data-q="2" data-type="acne-prone" onclick="selectQuiz(this)">Almost constantly</div>
+          <div class="quiz-opt" data-q="2" data-type="oily" onclick="selectQuiz(this)">Quite often</div>
+          <div class="quiz-opt" data-q="2" data-type="combination" onclick="selectQuiz(this)">Occasionally (T-zone)</div>
+          <div class="quiz-opt" data-q="2" data-type="dry" onclick="selectQuiz(this)">Rarely or never</div>
+        </div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q">Q3. How does your skin react to new products?</div>
+        <div class="quiz-options">
+          <div class="quiz-opt" data-q="3" data-type="sensitive" onclick="selectQuiz(this)">Redness or irritation</div>
+          <div class="quiz-opt" data-q="3" data-type="acne-prone" onclick="selectQuiz(this)">Breaks out easily</div>
+          <div class="quiz-opt" data-q="3" data-type="normal" onclick="selectQuiz(this)">Generally fine</div>
+          <div class="quiz-opt" data-q="3" data-type="dry" onclick="selectQuiz(this)">Becomes drier</div>
+        </div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q">Q4. By midday, your skin typically looks:</div>
+        <div class="quiz-options">
+          <div class="quiz-opt" data-q="4" data-type="oily" onclick="selectQuiz(this)">Very oily all over</div>
+          <div class="quiz-opt" data-q="4" data-type="combination" onclick="selectQuiz(this)">Oily nose, rest fine</div>
+          <div class="quiz-opt" data-q="4" data-type="dry" onclick="selectQuiz(this)">Dull or patchy</div>
+          <div class="quiz-opt" data-q="4" data-type="normal" onclick="selectQuiz(this)">Fresh &amp; even</div>
+        </div>
+      </div>
+      <div class="direct-pick-box">
+        <div class="direct-pick-label">Or select your skin type(s) directly — <span style="font-size:0.76rem;color:var(--muted);font-weight:400;">multiple allowed</span></div>
+        <div class="option-grid" id="skinTypeGrid" style="grid-template-columns:repeat(auto-fill,minmax(100px,1fr));margin-bottom:0;gap:8px;">
+          <div class="option-card multi" data-val="oily" onclick="selectSkinType(this)">
+            <div class="card-icon">○</div><div class="option-label">Oily</div>
+          </div>
+          <div class="option-card multi" data-val="dry" onclick="selectSkinType(this)">
+            <div class="card-icon" style="font-size:0.75rem;letter-spacing:2px;">— —</div><div class="option-label">Dry</div>
+          </div>
+          <div class="option-card multi" data-val="combination" onclick="selectSkinType(this)">
+            <div class="card-icon">◑</div><div class="option-label">Combo</div>
+          </div>
+          <div class="option-card multi" data-val="acne-prone" onclick="selectSkinType(this)">
+            <div class="card-icon">◎</div><div class="option-label">Acne-Prone</div>
+          </div>
+          <div class="option-card multi" data-val="sensitive" onclick="selectSkinType(this)">
+            <div class="card-icon">∿</div><div class="option-label">Sensitive</div>
+          </div>
+          <div class="option-card multi" data-val="normal" onclick="selectSkinType(this)">
+            <div class="card-icon">◇</div><div class="option-label">Normal</div>
+          </div>
+        </div>
+        <div id="skinTypeSelectedLabel" style="margin-top:10px;font-size:0.78rem;color:var(--rose);font-weight:600;min-height:18px;"></div>
+      </div>
+    </div>
+    <div class="nav-row">
+      <button class="btn-back" onclick="showPage(1)">← Back</button>
+      <div class="nav-right">
+        <button class="btn-skip" onclick="showPage(3)">Skip quiz</button>
+        <button class="btn-next" onclick="goNextFromQuiz()">Continue →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     PAGE 3: SKIN CONCERNS
+════════════════════════════════════ -->
+<div class="page" id="page-3">
+  <div class="page-inner">
+    <div class="step-label">Step 3 of 5</div>
+    <h1 class="page-title">Select your <em>concerns</em></h1>
+    <p class="page-subtitle">Choose all that apply. This helps narrow recommendations to what matters for you.</p>
+    <div class="option-grid" id="concernsGrid" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));">
+      <div class="option-card multi" data-val="acne" onclick="selectMulti('concernsGrid',this,'concerns')">
+        <div class="card-icon">◎</div><div class="option-label">Acne &amp; Breakouts</div>
+      </div>
+      <div class="option-card multi" data-val="dark-spots" onclick="selectMulti('concernsGrid',this,'concerns')">
+        <div class="card-icon">◑</div><div class="option-label">Dark Spots</div>
+      </div>
+      <div class="option-card multi" data-val="anti-aging" onclick="selectMulti('concernsGrid',this,'concerns')">
+        <div class="card-icon">◈</div><div class="option-label">Anti-Aging</div>
+      </div>
+      <div class="option-card multi" data-val="hydration" onclick="selectMulti('concernsGrid',this,'concerns')">
+        <div class="card-icon">◇</div><div class="option-label">Hydration</div>
+      </div>
+      <div class="option-card multi" data-val="brightening" onclick="selectMulti('concernsGrid',this,'concerns')">
+        <div class="card-icon">✦</div><div class="option-label">Brightening</div>
+      </div>
+      <div class="option-card multi" data-val="pores" onclick="selectMulti('concernsGrid',this,'concerns')">
+        <div class="card-icon">⊡</div><div class="option-label">Pores &amp; Texture</div>
+      </div>
+      <div class="option-card multi" data-val="redness" onclick="selectMulti('concernsGrid',this,'concerns')">
+        <div class="card-icon">∿</div><div class="option-label">Redness</div>
+      </div>
+      <div class="option-card multi" data-val="dark-circles" onclick="selectMulti('concernsGrid',this,'concerns')">
+        <div class="card-icon">◐</div><div class="option-label">Dark Circles</div>
+      </div>
+    </div>
+    <div class="nav-row">
+      <button class="btn-back" onclick="showPage(2)">← Back</button>
+      <button class="btn-next" onclick="showPage(4)">Continue →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     PAGE 4: ALLERGIES + BUDGET
+════════════════════════════════════ -->
+<div class="page" id="page-4">
+  <div class="page-inner">
+    <div class="step-label">Step 4 of 5</div>
+    <h1 class="page-title">Any <em>sensitivities?</em></h1>
+    <p class="page-subtitle">We'll filter out products containing ingredients you need to avoid.</p>
+    <div class="field-group">
+      <label class="field-label">Ingredients to Avoid</label>
+      <div class="tag-input-wrap" onclick="this.querySelector('input').focus()">
+        <div id="allergyTags"></div>
+        <input class="tag-real-input" id="allergyInput" placeholder="Type and press Enter — e.g. fragrance, retinol" onkeydown="addTag(event,'allergyTags','allergies')">
+      </div>
+      <div class="hint-text">Common: fragrance, alcohol, retinol, AHA, parabens, sulfates</div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Skin Conditions</label>
+      <div class="tag-input-wrap" onclick="this.querySelector('input').focus()">
+        <div id="conditionTags"></div>
+        <input class="tag-real-input" id="conditionInput" placeholder="e.g. rosacea, eczema, psoriasis" onkeydown="addTag(event,'conditionTags','conditions')">
+      </div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Budget Range</label>
+      <select class="field-input" id="budgetInput" style="max-width:280px;cursor:pointer;">
+        <option value="">No preference</option>
+        <option value="budget">Budget — Under ₹500</option>
+        <option value="mid">Mid-range — ₹500–₹2000</option>
+        <option value="premium">Premium — ₹2000+</option>
+      </select>
+    </div>
+    <div class="nav-row">
+      <button class="btn-back" onclick="showPage(3)">← Back</button>
+      <button class="btn-next" onclick="startAnalysis()">Analyze Skin →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     PAGE 5: LOADING
+════════════════════════════════════ -->
+<div class="page" id="page-5">
+  <div class="loading-screen">
+    <div class="loading-ring"></div>
+    <div class="loading-text">Analyzing your skin profile</div>
+    <div class="loading-sub">Matching products to your type, concerns &amp; sensitivities</div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     PAGE 6: RESULTS
+════════════════════════════════════ -->
+<div class="page" id="page-6">
+  <div class="page-inner" style="max-width:720px;">
+    <div class="step-label">Analysis Complete</div>
+    <h1 class="page-title" style="font-size:clamp(1.8rem,4.5vw,2.8rem);margin-bottom:16px;">Your Skin <em>Report</em></h1>
+    <div id="summaryBanner"></div>
+
+    <!-- Smart Search + Filter — Version A feature -->
+    <div class="search-filter-row">
+      <div class="search-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input class="search-input" id="productSearch" placeholder="Search products, brands..." oninput="filterProducts()">
+      </div>
+      <button class="filter-btn" onclick="toggleFilterPanel()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+        Filter
+      </button>
+    </div>
+    <div class="filter-panel" id="filterPanel">
+      <div class="filter-row">
+        <div class="filter-group">
+          <label>Risk Level</label>
+          <select class="filter-select" id="filterRisk" onchange="filterProducts()">
+            <option value="">All</option>
+            <option value="Low">Low risk</option>
+            <option value="Moderate">Moderate risk</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Min. Score</label>
+          <select class="filter-select" id="filterScore" onchange="filterProducts()">
+            <option value="0">All</option>
+            <option value="8.5">8.5+</option>
+            <option value="9">9.0+</option>
+          </select>
+        </div>
+        <button class="btn-filter-apply" onclick="resetFilters()">Clear Filters</button>
+      </div>
+    </div>
+
+    <div class="results-actions">
+      <button class="btn-outline" onclick="openProfile()">History &amp; Saved</button>
+      <button class="btn-outline" onclick="restartSurvey()" style="margin-left:auto;">Start Over ↺</button>
+    </div>
+    <div id="resultGrid" class="result-grid"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     PAGE 7: PROFILE
+════════════════════════════════════ -->
+<div class="page" id="page-7">
+  <div class="page-inner" style="max-width:680px;">
+    <div class="step-label">Account</div>
+    <h1 class="page-title" style="font-size:2rem;margin-bottom:20px;">My <em>Profile</em></h1>
+    <div class="profile-header-row">
+      <div class="profile-big-avatar" id="profileBigAvatar"></div>
+      <div>
+        <div class="profile-name" id="profileName"></div>
+        <div class="profile-email" id="profileEmail"></div>
+      </div>
+      <button class="btn-logout" onclick="doLogout()">Sign Out</button>
+    </div>
+    <div class="section-tabs">
+      <div class="section-tab active" onclick="switchTab('history')">Analysis History</div>
+      <div class="section-tab" onclick="switchTab('products')">Viewed Products</div>
+      <div class="section-tab" onclick="switchTab('favourites')">Saved</div>
+    </div>
+    <div class="tab-panel active" id="tab-history"><div id="historyList"></div></div>
+    <div class="tab-panel" id="tab-products"><div id="productHistoryList"></div></div>
+    <div class="tab-panel" id="tab-favourites"><div class="fav-grid" id="favGrid"></div></div>
+    <div class="nav-row" style="margin-top:24px;">
+      <button class="btn-back" onclick="showPage(6)">← Back to Results</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     PAGE 8: CATEGORY BROWSE
+════════════════════════════════════ -->
+<div class="page" id="page-8">
+  <div class="page-inner" style="max-width:720px;">
+    <div class="step-label" id="cat-breadcrumb">Browse</div>
+    <h1 class="page-title" style="font-size:clamp(1.8rem,4.5vw,2.8rem);margin-bottom:8px;" id="cat-page-title">Category</h1>
+    <p class="page-subtitle" id="cat-page-sub">Explore products in this category.</p>
+
+    <div class="search-filter-row">
+      <div class="search-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input class="search-input" id="catSearch" placeholder="Search products, brands..." oninput="filterCatProducts()">
+      </div>
+      <button class="filter-btn" onclick="document.getElementById('catFilterPanel').classList.toggle('open')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+        Filter
+      </button>
+    </div>
+    <div class="filter-panel" id="catFilterPanel">
+      <div class="filter-row">
+        <div class="filter-group">
+          <label>Price Range</label>
+          <select class="filter-select" id="catFilterPrice" onchange="filterCatProducts()">
+            <option value="">All Prices</option>
+            <option value="budget">Under ₹500</option>
+            <option value="mid">₹500–₹2000</option>
+            <option value="premium">₹2000+</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Risk Level</label>
+          <select class="filter-select" id="catFilterRisk" onchange="filterCatProducts()">
+            <option value="">All</option>
+            <option value="Low">Low Risk</option>
+            <option value="Moderate">Moderate</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Skin Type</label>
+          <select class="filter-select" id="catFilterSkin" onchange="filterCatProducts()">
+            <option value="">All Skin Types</option>
+            <option value="oily">Oily</option>
+            <option value="dry">Dry</option>
+            <option value="combination">Combination</option>
+            <option value="sensitive">Sensitive</option>
+            <option value="acne-prone">Acne-Prone</option>
+            <option value="normal">Normal</option>
+          </select>
+        </div>
+        <button class="btn-filter-apply" onclick="resetCatFilters()">Clear</button>
+      </div>
+    </div>
+
+    <div id="catProductGrid" class="result-grid"></div>
+
+    <div class="nav-row" style="margin-top:20px;">
+      <button class="btn-back" onclick="showPage(1)">← Home</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     PAGE 9: PRODUCT DETAIL
+════════════════════════════════════ -->
+<div class="page" id="page-9">
+  <div class="page-inner" style="max-width:680px;">
+    <div class="step-label" id="detail-breadcrumb">Product Detail</div>
+    <div id="detail-content"></div>
+    <div class="nav-row" style="margin-top:24px;">
+      <button class="btn-back" id="detail-back-btn" onclick="showPage(8)">← Back to Category</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /app -->
+
+<script>
+// ── STATE ──
+const state = {
+  gender: null, age: null,
+  skintypes: [],   // multi-select array
+  skintype: null,  // primary (first selected)
+  concerns: [], allergies: [], conditions: [], budget: null,
+  quizVotes: {}
+};
+let currentUser = null;
+let currentPage = 0;
+let _displayedProducts = [];
+let _allProducts = [];
+let _currentCategory = null;
+let _catAllProducts = [];
+let _catDisplayed = [];
+let _detailFromPage = 8;
+
+const skinIcons = {
+  oily: '○', dry: '—', combination: '◑',
+  sensitive: '∿', 'acne-prone': '◎', normal: '◇'
+};
+
+// ── SIDE PANEL ──
+function openSidePanel() {
+  document.getElementById('sidePanel').classList.add('open');
+  document.getElementById('sideOverlay').classList.add('open');
+}
+function closeSidePanel() {
+  document.getElementById('sidePanel').classList.remove('open');
+  document.getElementById('sideOverlay').classList.remove('open');
+}
+function toggleFilterPanel() {
+  document.getElementById('filterPanel').classList.toggle('open');
+}
+
+// ── STORAGE ──
+function getUsers() { return JSON.parse(localStorage.getItem('gw_users') || '{}'); }
+function saveUsers(u) { localStorage.setItem('gw_users', JSON.stringify(u)); }
+function getUserData(email) {
+  const d = localStorage.getItem('gw_data_' + email);
+  return d ? JSON.parse(d) : { searchHistory: [], productHistory: [], favourites: [] };
+}
+function saveUserData(email, data) { localStorage.setItem('gw_data_' + email, JSON.stringify(data)); }
+
+// ── AUTH ──
+function switchAuthTab(tab) {
+  ['signin','signup'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+    document.getElementById('form-' + t).style.display = t === tab ? 'block' : 'none';
+  });
+}
+function doSignIn() {
+  const email = document.getElementById('signin-email').value.trim();
+  const pass = document.getElementById('signin-pass').value;
+  clearErrors(['err-signin-email','err-signin-pass']);
+  let ok = true;
+  if (!email || !/\S+@\S+\.\S+/.test(email)) { showErr('err-signin-email'); ok = false; }
+  if (!pass) { showErr('err-signin-pass'); ok = false; }
+  if (!ok) return;
+  const users = getUsers();
+  if (!users[email]) { showErr('err-signin-email', 'No account found.'); return; }
+  if (users[email].password !== pass) { showErr('err-signin-pass', 'Incorrect password.'); return; }
+  loginUser(email, users[email].name);
+}
+function doSignUp() {
+  const name = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const pass = document.getElementById('signup-pass').value;
+  clearErrors(['err-signup-name','err-signup-email','err-signup-pass']);
+  let ok = true;
+  if (!name) { showErr('err-signup-name'); ok = false; }
+  if (!email || !/\S+@\S+\.\S+/.test(email)) { showErr('err-signup-email'); ok = false; }
+  if (!pass || pass.length < 6) { showErr('err-signup-pass'); ok = false; }
+  if (!ok) return;
+  const users = getUsers();
+  if (users[email]) { showErr('err-signup-email', 'Account already exists.'); return; }
+  users[email] = { name, password: pass };
+  saveUsers(users);
+  loginUser(email, name);
+}
+function doGuest() {
+  currentUser = { name: 'Guest', email: 'guest', isGuest: true };
+  afterLogin();
+}
+function loginUser(email, name) {
+  currentUser = { name, email };
+  afterLogin();
+}
+function afterLogin() {
+  document.getElementById('userChip').style.display = 'flex';
+  document.getElementById('userAvatarMini').textContent = currentUser.name.charAt(0).toUpperCase();
+  document.getElementById('userNameChip').textContent = currentUser.name.split(' ')[0];
+  showToast('Welcome, ' + currentUser.name.split(' ')[0] + '!', 'success');
+  showPage(1);
+}
+function doLogout() {
+  currentUser = null;
+  document.getElementById('userChip').style.display = 'none';
+  resetSurvey();
+  showToast('Signed out.', '');
+  showPage(0);
+}
+
+// ── NAVIGATION ──
+function showPage(n) {
+  document.querySelectorAll('.page').forEach((p, i) => p.classList.toggle('active', i === n));
+  currentPage = n;
+  renderProgress(n);
+  window.scrollTo(0, 0);
+}
+function renderProgress(n) {
+  const center = document.getElementById('headerCenter');
+  if (n < 1 || n > 5) { center.innerHTML = ''; return; }
+  const pct = Math.round(((n - 1) / 4) * 100);
+  center.innerHTML = `<div class="prog-step"><span>Step ${n} of 5</span><div class="prog-bar-track"><div class="prog-bar-fill" style="width:${pct}%"></div></div></div>`;
+}
+function goNextPage1() {
+  const ageVal = document.getElementById('ageInput').value;
+  const ageNum = parseInt(ageVal);
+  const banner = document.getElementById('gender-error-banner');
+  const ageErr = document.getElementById('err-age');
+  const ageInp = document.getElementById('ageInput');
+  let ok = true;
+  if (!state.gender) { banner.classList.add('show'); ok = false; } else { banner.classList.remove('show'); }
+  if (!ageVal || isNaN(ageNum) || ageNum < 13 || ageNum > 90) {
+    ageErr.classList.add('show'); ageInp.classList.add('error-field'); ok = false;
+  } else {
+    ageErr.classList.remove('show'); ageInp.classList.remove('error-field'); state.age = ageNum;
+  }
+  if (!ok) { shake(document.getElementById('btnNext1')); return; }
+  showPage(2);
+}
+function goNextFromQuiz() {
+  if (!state.skintype) {
+    const counts = {};
+    Object.values(state.quizVotes).forEach(v => counts[v] = (counts[v] || 0) + 1);
+    let best = null, max = 0;
+    Object.entries(counts).forEach(([k, v]) => { if (v > max) { max = v; best = k; } });
+    if (best) state.skintype = best;
+  }
+  showPage(3);
+}
+function startAnalysis() {
+  state.budget = document.getElementById('budgetInput').value;
+  // Resolve skin type from quiz votes if none selected directly
+  if (state.skintypes.length === 0 && Object.keys(state.quizVotes).length > 0) {
+    const counts = {};
+    Object.values(state.quizVotes).forEach(v => counts[v] = (counts[v] || 0) + 1);
+    let best = null, max = 0;
+    Object.entries(counts).forEach(([k, v]) => { if (v > max) { max = v; best = k; } });
+    if (best) { state.skintypes = [best]; state.skintype = best; }
+  }
+  if (currentUser && !currentUser.isGuest) {
+    const ud = getUserData(currentUser.email);
+    ud.searchHistory.unshift({
+      skintype: state.skintypes[0] || 'normal',
+      concerns: [...state.concerns],
+      date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+      time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+    });
+    if (ud.searchHistory.length > 20) ud.searchHistory.length = 20;
+    saveUserData(currentUser.email, ud);
+  }
+  showPage(5);
+  setTimeout(() => { generateResults(); showPage(6); }, 2200);
+}
+function restartSurvey() { resetSurvey(); showPage(1); }
+function openProfile() { renderProfile(); showPage(7); }
+function resetSurvey() {
+  Object.assign(state, { gender:null,age:null,skintype:null,skintypes:[],concerns:[],allergies:[],conditions:[],budget:null,quizVotes:{} });
+  document.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+  document.querySelectorAll('.quiz-opt').forEach(c => c.classList.remove('selected'));
+  ['ageInput','allergyInput','conditionInput'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['allergyTags','conditionTags'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
+  document.getElementById('gender-error-banner').classList.remove('show');
+  document.getElementById('err-age').classList.remove('show');
+  const lbl = document.getElementById('skinTypeSelectedLabel');
+  if (lbl) lbl.textContent = '';
+}
+
+// ── SKIN TYPE MULTI-SELECT ──
+function selectSkinType(card) {
+  card.classList.toggle('selected');
+  const val = card.dataset.val;
+  if (card.classList.contains('selected')) {
+    if (!state.skintypes.includes(val)) state.skintypes.push(val);
+  } else {
+    state.skintypes = state.skintypes.filter(v => v !== val);
+  }
+  state.skintype = state.skintypes[0] || null;
+  const lbl = document.getElementById('skinTypeSelectedLabel');
+  if (lbl) lbl.textContent = state.skintypes.length ? 'Selected: ' + state.skintypes.map(cap).join(', ') : '';
+}
+
+// ── SELECTION ──
+function selectOne(gridId, card, stateKey) {
+  document.querySelectorAll('#' + gridId + ' .option-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  state[stateKey] = card.dataset.val;
+  if (stateKey === 'gender') document.getElementById('gender-error-banner').classList.remove('show');
+}
+function selectMulti(gridId, card, stateKey) {
+  card.classList.toggle('selected');
+  const val = card.dataset.val;
+  if (card.classList.contains('selected')) { if (!state[stateKey].includes(val)) state[stateKey].push(val); }
+  else { state[stateKey] = state[stateKey].filter(v => v !== val); }
+}
+function selectQuiz(opt) {
+  const q = opt.dataset.q;
+  document.querySelectorAll('.quiz-opt[data-q="' + q + '"]').forEach(o => o.classList.remove('selected'));
+  opt.classList.add('selected');
+  state.quizVotes[q] = opt.dataset.type;
+  const counts = {};
+  Object.values(state.quizVotes).forEach(v => counts[v] = (counts[v] || 0) + 1);
+  let best = null, max = 0;
+  Object.entries(counts).forEach(([k, v]) => { if (v > max) { max = v; best = k; } });
+  if (best) {
+    // Auto-select in the multi skin type grid (add if not already there)
+    const existing = document.querySelector('#skinTypeGrid .option-card[data-val="' + best + '"]');
+    if (existing && !existing.classList.contains('selected')) {
+      // Only auto-select if nothing manually chosen yet
+      if (state.skintypes.length === 0) {
+        document.querySelectorAll('#skinTypeGrid .option-card').forEach(c => c.classList.remove('selected'));
+        existing.classList.add('selected');
+        state.skintypes = [best];
+        state.skintype = best;
+        const lbl = document.getElementById('skinTypeSelectedLabel');
+        if (lbl) lbl.textContent = 'Selected: ' + cap(best);
+      }
+    }
+  }
+}
+
+// ── TAG INPUT ──
+function addTag(e, containerId, stateKey) {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    const val = e.target.value.trim().replace(/,$/, '');
+    if (!val) return;
+    state[stateKey].push(val);
+    const tag = document.createElement('div');
+    tag.className = 'tag';
+    tag.innerHTML = val + ' <span class="tag-x" onclick="removeTag(this,\'' + stateKey + '\',\'' + val + '\')">×</span>';
+    document.getElementById(containerId).appendChild(tag);
+    e.target.value = '';
+  }
+}
+function removeTag(x, stateKey, val) {
+  state[stateKey] = state[stateKey].filter(v => v !== val);
+  x.parentElement.remove();
+}
+
+// ── PRODUCT DATABASE ──
+const productDB = {
+  oily: [
+    { productname:"Minimalist Niacinamide 10% + Zinc 1%", brand:"Minimalist", price:"₹349", compatibilityscore:9.2, risklevel:"Low", reasoning:"Controls sebum without stripping. Niacinamide minimizes pores and reduces midday shine effectively.", productlink:"https://www.minimalistskincare.com/products/niacinamide-10-zinc-1", image:"https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=500&q=80", reviews:[{name:"Ananya R.",stars:5,text:"Game changer for my oily skin! Pores look smaller after 2 weeks."},{name:"Priya M.",stars:4,text:"Lightweight, absorbs fast. Reduced my breakouts significantly."}] },
+    { productname:"Cetaphil Oil Control Foam Wash", brand:"Cetaphil", price:"₹450", compatibilityscore:8.7, risklevel:"Low", reasoning:"Gentle formula removes excess oil without disrupting the moisture barrier.", productlink:"https://www.cetaphil.in/product/oil-control-foam-wash", image:"https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=500&q=80", reviews:[{name:"Rohan S.",stars:5,text:"Best cleanser I've tried. Doesn't dry out my skin at all."},{name:"Meera K.",stars:4,text:"Very gentle. Good for sensitive-oily combination."}] },
+    { productname:"The Ordinary Salicylic Acid 2%", brand:"The Ordinary", price:"₹529", compatibilityscore:8.5, risklevel:"Moderate", reasoning:"BHA exfoliant penetrates pores to remove congestion. Patch test recommended.", productlink:"https://theordinary.com/en-in/salicylic-acid-2-solution-100366.html", image:"https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=500&q=80", reviews:[{name:"Kavya T.",stars:4,text:"Works great on blackheads. Start slow — 3x a week max."},{name:"Arjun P.",stars:3,text:"Effective but can be drying if overused."}] }
+  ],
+  dry: [
+    { productname:"CeraVe Moisturizing Cream", brand:"CeraVe", price:"₹899", compatibilityscore:9.5, risklevel:"Low", reasoning:"Ceramide-rich formula restores the skin barrier. Fragrance-free and dermatologist tested.", productlink:"https://www.cerave.in/moisturizers/moisturizing-cream", image:"https://images.unsplash.com/photo-1556228720-195a672e8a03?w=500&q=80", reviews:[{name:"Divya L.",stars:5,text:"Must-have for dry skin. Keeps skin hydrated all day."},{name:"Sanjana M.",stars:5,text:"Thick but not greasy. Saved my skin in winter."}] },
+    { productname:"Minimalist Hyaluronic Acid 2% + B5", brand:"Minimalist", price:"₹299", compatibilityscore:9.0, risklevel:"Low", reasoning:"Multi-weight HA delivers deep and surface hydration for visibly plumper skin.", productlink:"https://www.minimalistskincare.com/products/hyaluronic-acid-2", image:"https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=500&q=80", reviews:[{name:"Tara N.",stars:5,text:"Instantly plumps. My skin drinks it up!"},{name:"Aisha K.",stars:4,text:"Lightweight serum that layers well under moisturizer."}] },
+    { productname:"Neutrogena Hydro Boost Water Gel", brand:"Neutrogena", price:"₹799", compatibilityscore:8.3, risklevel:"Low", reasoning:"Lightweight gel with HA absorbs quickly and provides 24-hour hydration.", productlink:"https://www.neutrogena.in/product/hydro-boost-water-gel", image:"https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?w=500&q=80", reviews:[{name:"Rahul S.",stars:4,text:"Great for summer. Refreshing and non-sticky."},{name:"Neha P.",stars:4,text:"Best gel moisturizer. No white cast."}] }
+  ],
+  combination: [
+    { productname:"La Roche-Posay Effaclar Duo+", brand:"La Roche-Posay", price:"₹1299", compatibilityscore:9.0, risklevel:"Low", reasoning:"Targets T-zone congestion while keeping drier areas balanced.", productlink:"https://www.laroche-posay.in/effaclar-duo-plus", image:"https://images.unsplash.com/photo-1591019479261-1a103585c559?w=500&q=80", reviews:[{name:"Pooja G.",stars:5,text:"Finally a product that works on my T-zone without drying my cheeks."},{name:"Ritika V.",stars:4,text:"Pricey but worth it. Skin is balanced and clear."}] },
+    { productname:"Minimalist PHA 3% Toner", brand:"Minimalist", price:"₹399", compatibilityscore:8.8, risklevel:"Low", reasoning:"Gentle exfoliation refines texture across skin zones without over-drying.", productlink:"https://www.minimalistskincare.com/products/pha-toner", image:"https://images.unsplash.com/photo-1596755389378-c31d21fd1273?w=500&q=80", reviews:[{name:"Isha T.",stars:5,text:"Skin is so smooth. Gentle and effective."},{name:"Kiran M.",stars:4,text:"Great for combination skin. No irritation."}] },
+    { productname:"Plum Green Tea Alcohol-Free Toner", brand:"Plum", price:"₹295", compatibilityscore:8.5, risklevel:"Low", reasoning:"Balances sebum in oily zones while hydrating dry patches. Good for daily use.", productlink:"https://plumgoodness.com/products/green-tea-toner", image:"https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=500&q=80", reviews:[{name:"Shruti B.",stars:5,text:"Smells amazing and balances my skin perfectly."},{name:"Aditi R.",stars:4,text:"Affordable and effective. A staple in my routine."}] }
+  ],
+  sensitive: [
+    { productname:"Avène Tolerance Extreme Emulsion", brand:"Avène", price:"₹1650", compatibilityscore:9.6, risklevel:"Low", reasoning:"Minimal ingredients for reactive skin. Specially formulated to reduce irritation.", productlink:"https://www.avene.com/en/face/moisturisers/tolerance-extreme-emulsion", image:"https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=500&q=80", reviews:[{name:"Maya S.",stars:5,text:"Only thing that doesn't irritate my rosacea-prone skin."},{name:"Leena K.",stars:5,text:"Dermatologist recommended. Absolutely no reaction."}] },
+    { productname:"Cetaphil Gentle Skin Cleanser", brand:"Cetaphil", price:"₹385", compatibilityscore:9.4, risklevel:"Low", reasoning:"Soap-free, non-irritating formula. A classic gentle cleanser for sensitive skin.", productlink:"https://www.cetaphil.in/product/gentle-skin-cleanser", image:"https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=500&q=80", reviews:[{name:"Nisha P.",stars:5,text:"Using for 5 years. Nothing compares for sensitive skin."},{name:"Riya M.",stars:4,text:"Gentle and hydrating. Never strips my skin."}] },
+    { productname:"Bioderma Sensibio H2O", brand:"Bioderma", price:"₹599", compatibilityscore:9.1, risklevel:"Low", reasoning:"Ultra-gentle micellar water removes makeup without rubbing or rinsing.", productlink:"https://www.bioderma.in/products/sensibio/h2o", image:"https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?w=500&q=80", reviews:[{name:"Prachi V.",stars:5,text:"The gold standard for sensitive skin."},{name:"Tanvi A.",stars:5,text:"Removes even waterproof makeup without tugging."}] }
+  ],
+  "acne-prone": [
+    { productname:"Paula's Choice BHA 2% Liquid Exfoliant", brand:"Paula's Choice", price:"₹2800", compatibilityscore:9.3, risklevel:"Low", reasoning:"Cult-favourite BHA unclogs pores and reduces blackheads without irritation.", productlink:"https://www.paulaschoice.com/skin-perfecting-2-bha-liquid-exfoliant", image:"https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=500&q=80", reviews:[{name:"Simran K.",stars:5,text:"Transformed my acne-prone skin. Blackheads gone in 3 weeks."},{name:"Dhruv M.",stars:5,text:"Worth the price. Nothing has worked this well."}] },
+    { productname:"Minimalist Azelaic Acid 10%", brand:"Minimalist", price:"₹349", compatibilityscore:9.0, risklevel:"Low", reasoning:"Reduces redness, post-acne marks and comedones. Safe for sensitive acne-prone skin.", productlink:"https://www.minimalistskincare.com/products/azelaic-acid-10", image:"https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=500&q=80", reviews:[{name:"Varsha T.",stars:5,text:"My PIH is fading! Such an underrated ingredient."},{name:"Neel S.",stars:4,text:"Gentle but effective. Red marks reduced a lot."}] },
+    { productname:"Acne Star Benzoyl Peroxide 2.5%", brand:"Acne Star", price:"₹180", compatibilityscore:7.8, risklevel:"Moderate", reasoning:"Effective for active breakouts. Can cause dryness — follow with a gentle moisturizer.", productlink:"https://www.1mg.com/otc/acne-star-gel-otc341563", image:"https://images.unsplash.com/photo-1556228720-195a672e8a03?w=500&q=80", reviews:[{name:"Harsh P.",stars:4,text:"Works fast on active pimples. Just moisturize after!"},{name:"Vidya R.",stars:3,text:"Effective but drying. Use sparingly."}] }
+  ],
+  normal: [
+    { productname:"Minimalist Vitamin C 10% + Alpha Arbutin", brand:"Minimalist", price:"₹479", compatibilityscore:9.4, risklevel:"Low", reasoning:"Brightening serum for maintaining radiance and preventing dark spots.", productlink:"https://www.minimalistskincare.com/products/vitamin-c-10", image:"https://images.unsplash.com/photo-1596755389378-c31d21fd1273?w=500&q=80", reviews:[{name:"Anita G.",stars:5,text:"Skin looks so bright and even-toned. Love this!"},{name:"Roopa N.",stars:5,text:"Perfect for maintenance. My skin glows consistently."}] },
+    { productname:"Simple Kind to Skin SPF 50 Moisturiser", brand:"Simple", price:"₹499", compatibilityscore:9.2, risklevel:"Low", reasoning:"Lightweight daily moisturizer with sun protection. Gentle for balanced skin.", productlink:"https://www.simpleskincare.in/products/spf-moisturizer", image:"https://images.unsplash.com/photo-1591019479261-1a103585c559?w=500&q=80", reviews:[{name:"Mahi S.",stars:5,text:"Great SPF in a moisturizer! No white cast."},{name:"Jaya P.",stars:4,text:"My everyday go-to. Keeps skin protected and hydrated."}] },
+    { productname:"Klairs Supple Preparation Toner", brand:"Klairs", price:"₹1699", compatibilityscore:8.9, risklevel:"Low", reasoning:"Preps skin for better serum absorption. Calming and hydrating for daily use.", productlink:"https://www.wishtrend.com/products/klairs-supple-preparation-unscented-toner", image:"https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=500&q=80", reviews:[{name:"Sana M.",stars:5,text:"Such a good toner. Skin feels conditioned and soft."},{name:"Piya T.",stars:4,text:"Unscented and gentle. Serums absorb so much better."}] }
+  ]
+};
+
+// ── RESULTS ──
+function generateResults() {
+  // Gather products from all selected skin types (deduplicated)
+  const types = state.skintypes.length > 0 ? state.skintypes : [state.skintype || 'normal'];
+  const seen = new Set();
+  let combined = [];
+  types.forEach(t => {
+    const prods = productDB[t] || productDB.normal;
+    prods.forEach(p => {
+      const key = p.productname;
+      if (!seen.has(key)) { seen.add(key); combined.push({ ...p, _skintype: t }); }
+    });
+  });
+
+  // Filter allergies
+  let filtered = combined.filter(p =>
+    !state.allergies.some(a => p.reasoning.toLowerCase().includes(a.toLowerCase()))
+  );
+
+  // Filter by budget preference
+  if (state.budget) {
+    const budgetFiltered = filtered.filter(p => getPriceTier(p.price) === state.budget);
+    // Only apply if we'd still have results; otherwise keep all
+    if (budgetFiltered.length > 0) filtered = budgetFiltered;
+  }
+
+  _allProducts = filtered.length > 0 ? filtered : combined;
+  _displayedProducts = [..._allProducts];
+
+  if (currentUser && !currentUser.isGuest) {
+    const ud = getUserData(currentUser.email);
+    _displayedProducts.forEach(p => {
+      if (!ud.productHistory.find(h => h.productname === p.productname)) {
+        ud.productHistory.unshift({ productname:p.productname, brand:p.brand, price:p.price, image:p.image, productlink:p.productlink, date:new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) });
+      }
+    });
+    if (ud.productHistory.length > 30) ud.productHistory.length = 30;
+    saveUserData(currentUser.email, ud);
+  }
+
+  const typeLabels = types.map(t => cap(t)).join(', ');
+  const genderNote = state.gender === 'female' ? 'She/Her' : state.gender === 'male' ? 'He/Him' : state.gender === 'nonbinary' ? 'They/Them' : '';
+  document.getElementById('summaryBanner').innerHTML =
+    '<div class="summary-banner">' +
+    '<div class="sb-icon-wrap">' + (skinIcons[types[0]] || '◇') + '</div>' +
+    '<div style="flex:1;"><div class="sb-label">Skin Type' + (types.length > 1 ? 's' : '') + ' Detected</div>' +
+    '<div class="sb-title">' + typeLabels + ' Skin' + (genderNote ? ' — ' + genderNote : '') + (state.age ? ', ' + state.age + ' yrs' : '') + '</div>' +
+    '<div class="sb-tags">' +
+    state.concerns.map(c => '<span class="sb-tag">' + cap(c.replace(/-/g,' ')) + '</span>').join('') +
+    (state.allergies.length ? '<span class="sb-tag">Avoids: ' + state.allergies.join(', ') + '</span>' : '') +
+    (state.budget ? '<span class="sb-tag">Budget: ' + cap(state.budget) + '</span>' : '') +
+    '</div></div></div>';
+
+  renderProductGrid(_displayedProducts);
+}
+
+function renderProductGrid(products) {
+  if (!products.length) {
+    document.getElementById('resultGrid').innerHTML = '<div class="empty-state"><div class="empty-icon">◇</div>No products match your current filters.</div>';
+    return;
+  }
+  let html = '';
+  products.forEach((p, idx) => {
+    const rc = p.risklevel === 'Low' ? 'risk-low' : p.risklevel === 'Moderate' ? 'risk-moderate' : 'risk-high';
+    const sc = p.compatibilityscore;
+    const revHtml = p.reviews.map(r =>
+      '<div class="review-item">' +
+      '<div class="review-head"><div class="reviewer-avatar">' + r.name.charAt(0) + '</div>' +
+      '<span class="reviewer-name">' + r.name + '</span>' +
+      '<span class="review-stars">' + '★'.repeat(r.stars) + '☆'.repeat(5 - r.stars) + '</span></div>' +
+      '<div class="review-text">' + r.text + '</div></div>'
+    ).join('');
+    html +=
+      '<div class="result-card" id="card-' + idx + '">' +
+      '<div class="rc-image-wrap">' +
+      '<img src="' + p.image + '" alt="' + p.productname + '" loading="lazy">' +
+      '<button class="rc-fav-btn" id="fav-btn-' + idx + '" onclick="toggleFav(' + idx + ',event)">♡</button>' +
+      '<div class="rc-img-strip">' +
+      '<div class="rc-img-thumb"><img src="' + p.image + '?w=120&q=60" alt="" loading="lazy"></div>' +
+      '<div class="rc-img-thumb" style="opacity:0.65;"><img src="' + p.image + '?w=120&q=40" alt="" loading="lazy"></div>' +
+      '</div>' +
+      '</div>' +
+      '<div class="rc-body">' +
+      '<div class="rc-brand">' + p.brand + '</div>' +
+      '<div class="rc-top">' +
+      '<div class="rc-name">' + p.productname + '</div>' +
+      '<div class="score-pill"><span class="score-stars">★</span><span class="score-num"> ' + sc + '</span><span style="font-size:0.69rem;color:var(--muted);margin-left:2px;">/10</span></div>' +
+      '</div>' +
+      '<div class="rc-price"><span class="rc-price-from">From: </span>' + p.price + '</div>' +
+      '<div class="rc-reason">' + p.reasoning + '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;">' +
+      '<span class="risk-badge ' + rc + '">' + p.risklevel + ' Risk</span>' +
+      '</div>' +
+      '<div class="rc-actions">' +
+      '<a class="rc-link" href="' + p.productlink + '" target="_blank" rel="noopener">View Product ↗</a>' +
+      '<button class="rc-link-secondary" id="save-btn-' + idx + '" onclick="toggleFav(' + idx + ',event)">♡ Save</button>' +
+      '</div>' +
+      '<div class="reviews-section">' +
+      '<div class="reviews-title">Reviews</div>' +
+      revHtml +
+      '<div class="add-review-wrap">' +
+      '<div class="add-review-label">Write a review</div>' +
+      '<textarea class="add-review-input" id="rv-text-' + idx + '" placeholder="Share your experience…"></textarea>' +
+      '<div class="add-review-row">' +
+      '<div class="star-picker" id="sp-' + idx + '" data-val="0">' +
+      [1,2,3,4,5].map(s => '<button class="star-btn" onclick="setStar(' + idx + ',' + s + ')">★</button>').join('') +
+      '</div>' +
+      '<button class="btn-submit-review" onclick="submitReview(' + idx + ')">Post</button>' +
+      '</div></div></div></div></div>';
+  });
+  document.getElementById('resultGrid').innerHTML = html;
+}
+
+// ── PRICE TIER HELPER ──
+function getPriceTier(priceStr) {
+  const num = parseInt((priceStr || '').replace(/[^\d]/g, '')) || 0;
+  if (num < 500) return 'budget';
+  if (num <= 2000) return 'mid';
+  return 'premium';
+}
+
+// ── FILTER / SEARCH ──
+function filterProducts() {
+  const query = (document.getElementById('productSearch').value || '').toLowerCase();
+  const risk = document.getElementById('filterRisk').value;
+  const minScore = parseFloat(document.getElementById('filterScore').value) || 0;
+  _displayedProducts = _allProducts.filter(p => {
+    const matchSearch = !query ||
+      p.productname.toLowerCase().includes(query) ||
+      p.brand.toLowerCase().includes(query) ||
+      p.reasoning.toLowerCase().includes(query);
+    const matchRisk = !risk || p.risklevel === risk;
+    const matchScore = p.compatibilityscore >= minScore;
+    return matchSearch && matchRisk && matchScore;
+  });
+  renderProductGrid(_displayedProducts);
+}
+function resetFilters() {
+  document.getElementById('filterRisk').value = '';
+  document.getElementById('filterScore').value = '0';
+  document.getElementById('productSearch').value = '';
+  _displayedProducts = [..._allProducts];
+  renderProductGrid(_displayedProducts);
+}
+
+// ── STARS ──
+function setStar(idx, val) {
+  const sp = document.getElementById('sp-' + idx);
+  sp.dataset.val = val;
+  sp.querySelectorAll('.star-btn').forEach((b, i) => b.classList.toggle('active', i < val));
+}
+
+// ── REVIEW ──
+function submitReview(idx) {
+  const txt = document.getElementById('rv-text-' + idx).value.trim();
+  const sp = document.getElementById('sp-' + idx);
+  const starVal = parseInt(sp.dataset.val || '0');
+  if (!txt || !starVal) { showToast('Please add a star rating and comment.', 'error-toast'); return; }
+  const uName = currentUser ? currentUser.name.split(' ')[0] : 'You';
+  const item = document.createElement('div');
+  item.className = 'review-item';
+  item.innerHTML =
+    '<div class="review-head"><div class="reviewer-avatar">' + uName.charAt(0) + '</div>' +
+    '<span class="reviewer-name">' + uName + '</span>' +
+    '<span class="review-stars">' + '★'.repeat(starVal) + '☆'.repeat(5 - starVal) + '</span></div>' +
+    '<div class="review-text">' + txt + '</div>';
+  document.querySelector('#card-' + idx + ' .reviews-title').after(item);
+  document.getElementById('rv-text-' + idx).value = '';
+  sp.dataset.val = '0';
+  sp.querySelectorAll('.star-btn').forEach(b => b.classList.remove('active'));
+  showToast('Review posted.', 'success');
+}
+
+// ── FAVOURITES ──
+function toggleFav(idx, e) {
+  if (e) e.stopPropagation();
+  if (!currentUser || currentUser.isGuest) { showToast('Sign in to save products.', 'error-toast'); return; }
+  const p = _displayedProducts[idx];
+  if (!p) return;
+  const ud = getUserData(currentUser.email);
+  const exists = ud.favourites.findIndex(f => f.productname === p.productname);
+  const btn = document.getElementById('fav-btn-' + idx);
+  const saveBtn = document.getElementById('save-btn-' + idx);
+  if (exists > -1) {
+    ud.favourites.splice(exists, 1);
+    if (btn) { btn.textContent = '♡'; btn.classList.remove('faved'); }
+    if (saveBtn) saveBtn.textContent = '♡ Save';
+    showToast('Removed from saved.', '');
+  } else {
+    ud.favourites.unshift({ productname:p.productname, brand:p.brand, price:p.price, image:p.image, productlink:p.productlink });
+    if (btn) { btn.textContent = '♥'; btn.classList.add('faved'); }
+    if (saveBtn) saveBtn.textContent = '♥ Saved';
+    showToast('Saved.', 'success');
+  }
+  saveUserData(currentUser.email, ud);
+}
+
+// ── PROFILE ──
+function renderProfile() {
+  if (!currentUser) return;
+  const initials = currentUser.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  document.getElementById('profileBigAvatar').textContent = initials;
+  document.getElementById('profileName').textContent = currentUser.name;
+  document.getElementById('profileEmail').textContent = currentUser.isGuest ? 'Guest session' : currentUser.email;
+  if (currentUser.isGuest) {
+    const msg = '<div class="empty-state"><div class="empty-icon">◇</div>Sign in to view history and saved products.</div>';
+    ['historyList','productHistoryList','favGrid'].forEach(id => document.getElementById(id).innerHTML = msg);
+    return;
+  }
+  const ud = getUserData(currentUser.email);
+  document.getElementById('historyList').innerHTML = ud.searchHistory.length === 0
+    ? '<div class="empty-state"><div class="empty-icon">◇</div>No analysis sessions yet.</div>'
+    : ud.searchHistory.map(h =>
+        '<div class="history-item">' +
+        '<div class="history-icon">' + (skinIcons[h.skintype] || '◇') + '</div>' +
+        '<div class="history-text">' +
+        '<div class="history-title">Skin Analysis — ' + cap(h.skintype) + '</div>' +
+        '<div class="history-sub">' + (h.concerns.length ? h.concerns.join(', ') : 'No concerns selected') + '</div>' +
+        '</div>' +
+        '<div class="history-date">' + h.date + '<br>' + h.time + '</div>' +
+        '</div>'
+      ).join('');
+  document.getElementById('productHistoryList').innerHTML = ud.productHistory.length === 0
+    ? '<div class="empty-state"><div class="empty-icon">◇</div>No products viewed yet.</div>'
+    : ud.productHistory.map(p =>
+        '<div class="history-item">' +
+        '<img src="' + p.image + '" style="width:40px;height:40px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid var(--border);" alt="" loading="lazy">' +
+        '<div class="history-text">' +
+        '<div class="history-title">' + p.productname + '</div>' +
+        '<div class="history-sub">' + p.brand + ' · ' + p.price + '</div>' +
+        '</div>' +
+        '<div class="history-badge">' + p.date + '</div>' +
+        '</div>'
+      ).join('');
+  document.getElementById('favGrid').innerHTML = ud.favourites.length === 0
+    ? '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">♡</div>No saved products yet.</div>'
+    : ud.favourites.map((p, i) =>
+        '<div class="fav-card">' +
+        '<img class="fav-img" src="' + p.image + '" alt="' + p.productname + '" loading="lazy">' +
+        '<div class="fav-info">' +
+        '<div class="fav-top"><div class="fav-name">' + p.productname + '</div><button class="fav-rm" onclick="removeFav(' + i + ')" title="Remove">×</button></div>' +
+        '<div class="fav-price">' + p.price + '</div>' +
+        '<a href="' + p.productlink + '" target="_blank" style="font-size:0.73rem;color:var(--rose);text-decoration:none;font-weight:600;margin-top:4px;display:inline-block;">View Product ↗</a>' +
+        '</div></div>'
+      ).join('');
+}
+
+function switchTab(name) {
+  const names = ['history','products','favourites'];
+  document.querySelectorAll('.section-tab').forEach((t, i) => t.classList.toggle('active', names[i] === name));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+function removeFav(idx) {
+  if (!currentUser || currentUser.isGuest) return;
+  const ud = getUserData(currentUser.email);
+  ud.favourites.splice(idx, 1);
+  saveUserData(currentUser.email, ud);
+  renderProfile();
+  showToast('Removed.', '');
+}
+
+// ── CATEGORY DATABASE ──
+const categoryMeta = {
+  cleanser:    { label:'Cleanser',    icon:'◇', sub:'Skincare',   desc:'Gentle and effective cleansers for every skin type.' },
+  sunscreen:   { label:'Sunscreen',   icon:'✦', sub:'Skincare',   desc:'Daily broad-spectrum sun protection for all skin types.' },
+  serum:       { label:'Serum',       icon:'◎', sub:'Skincare',   desc:'Targeted treatment serums for specific skin concerns.' },
+  moisturizer: { label:'Moisturizer', icon:'◑', sub:'Skincare',   desc:'Hydrating and barrier-strengthening moisturizers.' },
+  bodywash:    { label:'Body Wash',   icon:'∿', sub:'Body Care',  desc:'Nourishing body washes for clean, soft skin.' },
+  lotion:      { label:'Lotion',      icon:'◈', sub:'Body Care',  desc:'Lightweight body lotions and daily moisturizers.' },
+};
+
+const categoryDB = {
+  cleanser: [
+    { productname:'Cetaphil Gentle Skin Cleanser', brand:'Cetaphil', price:'₹385', compatibilityscore:9.4, risklevel:'Low', suitableFor:['sensitive','dry','normal','combination'], reasoning:'Soap-free, non-irritating formula. Classic gentle cleanser for all skin types, especially sensitive.', productlink:'https://www.cetaphil.in/product/gentle-skin-cleanser', image:'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=500&q=80', reviews:[{name:'Nisha P.',stars:5,text:'Using for 5 years. Nothing compares for sensitive skin.'},{name:'Riya M.',stars:4,text:'Gentle and hydrating. Never strips my skin.'}] },
+    { productname:'Cetaphil Oil Control Foam Wash', brand:'Cetaphil', price:'₹450', compatibilityscore:8.7, risklevel:'Low', suitableFor:['oily','combination','acne-prone'], reasoning:'Gentle formula removes excess oil without disrupting the moisture barrier. Ideal for oily skin.', productlink:'https://www.cetaphil.in/product/oil-control-foam-wash', image:'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=500&q=80', reviews:[{name:'Rohan S.',stars:5,text:'Best cleanser for oily skin. Doesn\'t over-dry.'},{name:'Meera K.',stars:4,text:'Very gentle for oily-sensitive skin.'}] },
+    { productname:'Bioderma Sensibio H2O Micellar Water', brand:'Bioderma', price:'₹599', compatibilityscore:9.1, risklevel:'Low', suitableFor:['sensitive','dry','normal'], reasoning:'Ultra-gentle micellar water removes makeup without rubbing. No rinsing needed.', productlink:'https://www.bioderma.in/products/sensibio/h2o', image:'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?w=500&q=80', reviews:[{name:'Prachi V.',stars:5,text:'The gold standard for sensitive skin.'},{name:'Tanvi A.',stars:5,text:'Removes waterproof makeup without tugging.'}] },
+    { productname:'The Ordinary Glucoside Foaming Cleanser', brand:'The Ordinary', price:'₹780', compatibilityscore:8.6, risklevel:'Low', suitableFor:['oily','combination','normal','acne-prone'], reasoning:'Mild surfactant blend that cleanses thoroughly without stripping. Good for acne-prone skin.', productlink:'https://theordinary.com/en-in/glucoside-foaming-cleanser', image:'https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=500&q=80', reviews:[{name:'Kavya T.',stars:4,text:'Lathers nicely. Skin feels clean not tight.'},{name:'Dev R.',stars:5,text:'Great affordable daily cleanser.'}] },
+    { productname:'Plum Green Tea Pore Cleansing Face Wash', brand:'Plum', price:'₹249', compatibilityscore:8.3, risklevel:'Low', suitableFor:['oily','combination','acne-prone'], reasoning:'Antioxidant-rich green tea cleanser that controls sebum. Alcohol-free and vegan.', productlink:'https://plumgoodness.com/products/green-tea-face-wash', image:'https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=500&q=80', reviews:[{name:'Shruti B.',stars:5,text:'Refreshing and clears pores well.'},{name:'Aditi R.',stars:4,text:'Good for summers. Keeps oiliness in check.'}] },
+    { productname:'Minimalist 0.3% Retinol Face Wash', brand:'Minimalist', price:'₹349', compatibilityscore:7.9, risklevel:'Moderate', suitableFor:['normal','combination','acne-prone'], reasoning:'Low-dose retinol cleanser for mild exfoliation. Not suitable for sensitive or dry skin.', productlink:'https://www.minimalistskincare.com/products/retinol-face-wash', image:'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=500&q=80', reviews:[{name:'Ananya R.',stars:4,text:'Subtle improvement in texture over weeks.'},{name:'Priya M.',stars:3,text:'Bit strong for daily use. Alternate days work better.'}] },
+  ],
+  sunscreen: [
+    { productname:'La Roche-Posay Anthelios Invisible Fluid SPF50+', brand:'La Roche-Posay', price:'₹1800', compatibilityscore:9.5, risklevel:'Low', suitableFor:['sensitive','dry','normal','combination','oily'], reasoning:'Ultra-light invisible finish SPF for all skin types. No white cast, water-resistant.', productlink:'https://www.laroche-posay.in/anthelios-spf50', image:'https://images.unsplash.com/photo-1591019479261-1a103585c559?w=500&q=80', reviews:[{name:'Pooja G.',stars:5,text:'No white cast! Finally an SPF I enjoy wearing.'},{name:'Ritika V.',stars:5,text:'Stays put all day even in humidity.'}] },
+    { productname:'Minimalist SPF 50 PA++++ Sunscreen', brand:'Minimalist', price:'₹299', compatibilityscore:9.0, risklevel:'Low', suitableFor:['oily','combination','acne-prone','normal'], reasoning:'Lightweight matte-finish sunscreen. Very affordable with high PA rating. Good for oily skin.', productlink:'https://www.minimalistskincare.com/products/spf-50-sunscreen', image:'https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=500&q=80', reviews:[{name:'Tara N.',stars:5,text:'Best budget SPF. No pilling under makeup.'},{name:'Aisha K.',stars:4,text:'Slightly white cast on deep skin tones.'}] },
+    { productname:'Avène Mineral Cream SPF50+', brand:'Avène', price:'₹2200', compatibilityscore:9.3, risklevel:'Low', suitableFor:['sensitive','dry'], reasoning:'Mineral-only formula for reactive and sensitive skin. Specially tested for rosacea and eczema-prone skin.', productlink:'https://www.avene.com/en/face/sun-care/mineral-cream-spf50', image:'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=500&q=80', reviews:[{name:'Maya S.',stars:5,text:'Only SPF that doesn\'t flare my rosacea.'},{name:'Leena K.',stars:5,text:'Rich texture, very soothing.'}] },
+    { productname:'Simple Kind to Skin SPF 50 Moisturiser', brand:'Simple', price:'₹499', compatibilityscore:9.2, risklevel:'Low', suitableFor:['normal','dry','combination'], reasoning:'Lightweight daily moisturizer with SPF 50. Fragrance-free and gentle for everyday use.', productlink:'https://www.simpleskincare.in/products/spf-moisturizer', image:'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?w=500&q=80', reviews:[{name:'Mahi S.',stars:5,text:'Great combo product for lazy days.'},{name:'Jaya P.',stars:4,text:'No white cast, absorbs fast.'}] },
+    { productname:'Neutrogena Ultra Sheer Dry-Touch SPF50+', brand:'Neutrogena', price:'₹650', compatibilityscore:8.8, risklevel:'Low', suitableFor:['oily','combination','normal','acne-prone'], reasoning:'Dry-touch finish for oily skin. Won\'t clog pores or cause breakouts. Dermatologist tested.', productlink:'https://www.neutrogena.in/product/ultra-sheer-dry-touch-spf50', image:'https://images.unsplash.com/photo-1596755389378-c31d21fd1273?w=500&q=80', reviews:[{name:'Isha T.',stars:5,text:'Matte finish is perfect for my oily skin.'},{name:'Kiran M.',stars:4,text:'Affordable and effective daily SPF.'}] },
+    { productname:'Dot & Key Waterlight Sunscreen SPF50 PA++++', brand:'Dot & Key', price:'₹545', compatibilityscore:8.5, risklevel:'Low', suitableFor:['oily','combination','acne-prone'], reasoning:'Watery gel-texture SPF. Hydrating but non-greasy. Good for oily and combination skin types.', productlink:'https://dotandkey.com/products/waterlight-sunscreen-spf50', image:'https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=500&q=80', reviews:[{name:'Simran K.',stars:4,text:'Refreshing texture. Love the serum-like feel.'},{name:'Dhruv M.',stars:4,text:'Good for hot weather. Absorbs quickly.'}] },
+  ],
+  serum: [
+    { productname:'Minimalist Niacinamide 10% + Zinc 1%', brand:'Minimalist', price:'₹349', compatibilityscore:9.2, risklevel:'Low', suitableFor:['oily','combination','acne-prone','normal'], reasoning:'Controls sebum and minimizes pores. Reduces dark spots and redness. Suitable for most skin types.', productlink:'https://www.minimalistskincare.com/products/niacinamide-10-zinc-1', image:'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=500&q=80', reviews:[{name:'Ananya R.',stars:5,text:'Game changer for my oily skin!'},{name:'Priya M.',stars:4,text:'Pores look smaller after 2 weeks.'}] },
+    { productname:'Minimalist Hyaluronic Acid 2% + B5', brand:'Minimalist', price:'₹299', compatibilityscore:9.0, risklevel:'Low', suitableFor:['dry','normal','sensitive','combination'], reasoning:'Multi-weight HA delivers deep hydration. Apply on damp skin for best results.', productlink:'https://www.minimalistskincare.com/products/hyaluronic-acid-2', image:'https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=500&q=80', reviews:[{name:'Tara N.',stars:5,text:'Instantly plumps. My skin drinks it up!'},{name:'Aisha K.',stars:4,text:'Layers well under moisturizer.'}] },
+    { productname:'Minimalist Vitamin C 10% + Alpha Arbutin', brand:'Minimalist', price:'₹479', compatibilityscore:9.4, risklevel:'Low', suitableFor:['normal','combination','dry','oily'], reasoning:'Brightening serum for maintaining radiance and preventing dark spots. Use in AM with SPF.', productlink:'https://www.minimalistskincare.com/products/vitamin-c-10', image:'https://images.unsplash.com/photo-1596755389378-c31d21fd1273?w=500&q=80', reviews:[{name:'Anita G.',stars:5,text:'Skin looks so bright and even-toned!'},{name:'Roopa N.',stars:5,text:'My skin glows consistently.'}] },
+    { productname:'Minimalist Azelaic Acid 10%', brand:'Minimalist', price:'₹349', compatibilityscore:9.0, risklevel:'Low', suitableFor:['acne-prone','sensitive','combination','oily'], reasoning:'Reduces redness, post-acne marks and comedones. Safe for sensitive acne-prone skin.', productlink:'https://www.minimalistskincare.com/products/azelaic-acid-10', image:'https://images.unsplash.com/photo-1615397349754-cfa2066a298e?w=500&q=80', reviews:[{name:'Varsha T.',stars:5,text:'PIH is fading. Underrated ingredient.'},{name:'Neel S.',stars:4,text:'Red marks reduced a lot.'}] },
+    { productname:'Paula\'s Choice BHA 2% Liquid Exfoliant', brand:'Paula\'s Choice', price:'₹2800', compatibilityscore:9.3, risklevel:'Low', suitableFor:['oily','acne-prone','combination'], reasoning:'Cult BHA that unclogs pores and reduces blackheads. Use 2–3x per week.', productlink:'https://www.paulaschoice.com/skin-perfecting-2-bha-liquid-exfoliant', image:'https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=500&q=80', reviews:[{name:'Simran K.',stars:5,text:'Blackheads gone in 3 weeks.'},{name:'Dhruv M.',stars:5,text:'Nothing has worked this well.'}] },
+    { productname:'The Ordinary Retinol 0.5% in Squalane', brand:'The Ordinary', price:'₹1250', compatibilityscore:8.4, risklevel:'Moderate', suitableFor:['normal','combination','dry'], reasoning:'Anti-aging retinol in hydrating squalane base. Start 1–2x per week. Not for sensitive or acne-prone beginners.', productlink:'https://theordinary.com/en-in/retinol-0-5-in-squalane-100378.html', image:'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=500&q=80', reviews:[{name:'Kavya T.',stars:4,text:'Good beginner retinol. Start slow.'},{name:'Arjun P.',stars:4,text:'Visible smoothing after 6 weeks.'}] },
+  ],
+  moisturizer: [
+    { productname:'CeraVe Moisturizing Cream', brand:'CeraVe', price:'₹899', compatibilityscore:9.5, risklevel:'Low', suitableFor:['dry','sensitive','normal','combination'], reasoning:'Ceramide-rich formula restores the skin barrier. Fragrance-free and dermatologist tested.', productlink:'https://www.cerave.in/moisturizers/moisturizing-cream', image:'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=500&q=80', reviews:[{name:'Divya L.',stars:5,text:'Must-have for dry skin.'},{name:'Sanjana M.',stars:5,text:'Thick but not greasy. Saved my skin in winter.'}] },
+    { productname:'Neutrogena Hydro Boost Water Gel', brand:'Neutrogena', price:'₹799', compatibilityscore:8.3, risklevel:'Low', suitableFor:['oily','combination','normal'], reasoning:'Lightweight gel with HA. Absorbs quickly, provides 24-hour hydration without greasiness.', productlink:'https://www.neutrogena.in/product/hydro-boost-water-gel', image:'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?w=500&q=80', reviews:[{name:'Rahul S.',stars:4,text:'Great for summer. Non-sticky.'},{name:'Neha P.',stars:4,text:'Best gel moisturizer.'}] },
+    { productname:'Avène Tolerance Extreme Emulsion', brand:'Avène', price:'₹1650', compatibilityscore:9.6, risklevel:'Low', suitableFor:['sensitive'], reasoning:'Minimal ingredients for reactive skin. Specially formulated to reduce irritation risk.', productlink:'https://www.avene.com/en/face/moisturisers/tolerance-extreme-emulsion', image:'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=500&q=80', reviews:[{name:'Maya S.',stars:5,text:'Only thing that doesn\'t irritate my rosacea.'},{name:'Leena K.',stars:5,text:'Zero reaction.'}] },
+    { productname:'Minimalist 10% Vitamin B5 Moisturizer', brand:'Minimalist', price:'₹399', compatibilityscore:8.8, risklevel:'Low', suitableFor:['dry','normal','sensitive','combination'], reasoning:'Panthenol-rich formula that strengthens the skin barrier and provides lasting hydration.', productlink:'https://www.minimalistskincare.com/products/vitamin-b5', image:'https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=500&q=80', reviews:[{name:'Ananya R.',stars:5,text:'So moisturizing without feeling heavy.'},{name:'Priya M.',stars:4,text:'Great for dry patches.'}] },
+    { productname:'La Roche-Posay Effaclar Mat', brand:'La Roche-Posay', price:'₹1450', compatibilityscore:9.0, risklevel:'Low', suitableFor:['oily','combination','acne-prone'], reasoning:'Oil-control moisturizer with a matte finish. Controls shine for up to 8 hours.', productlink:'https://www.laroche-posay.in/effaclar-mat', image:'https://images.unsplash.com/photo-1591019479261-1a103585c559?w=500&q=80', reviews:[{name:'Pooja G.',stars:5,text:'Matte finish lasts through my work day.'},{name:'Ritika V.',stars:4,text:'Controls my T-zone beautifully.'}] },
+    { productname:'Klairs Supple Preparation Toner', brand:'Klairs', price:'₹1699', compatibilityscore:8.9, risklevel:'Low', suitableFor:['normal','dry','sensitive','combination'], reasoning:'Hydrating toner that preps skin for better serum absorption. Calming and fragrance-free.', productlink:'https://www.wishtrend.com/products/klairs-supple-preparation-unscented-toner', image:'https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=500&q=80', reviews:[{name:'Sana M.',stars:5,text:'Skin feels conditioned and soft.'},{name:'Piya T.',stars:4,text:'Serums absorb much better.'}] },
+  ],
+  bodywash: [
+    { productname:'Dove Sensitive Skin Body Wash', brand:'Dove', price:'₹299', compatibilityscore:9.0, risklevel:'Low', suitableFor:['sensitive','dry','normal'], reasoning:'Fragrance-free, hypoallergenic body wash with moisturizing cream. Gentle enough for sensitive skin.', productlink:'https://www.dove.com/in/body-wash/sensitive-skin.html', image:'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=500&q=80', reviews:[{name:'Nisha P.',stars:5,text:'Doesn\'t dry my skin at all.'},{name:'Riya M.',stars:4,text:'Gentle lather, leaves skin soft.'}] },
+    { productname:'Plum Body Lovin\' Vanilla Vibes Body Wash', brand:'Plum', price:'₹350', compatibilityscore:8.5, risklevel:'Low', suitableFor:['normal','combination','oily'], reasoning:'Sulfate-free, vegan body wash with pleasant vanilla scent. Cleanses without stripping moisture.', productlink:'https://plumgoodness.com/products/vanilla-body-wash', image:'https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=500&q=80', reviews:[{name:'Shruti B.',stars:5,text:'Smells amazing and skin feels clean.'},{name:'Aditi R.',stars:4,text:'Good lather, great scent.'}] },
+    { productname:'CeraVe Hydrating Cleanser (Body)', brand:'CeraVe', price:'₹799', compatibilityscore:9.2, risklevel:'Low', suitableFor:['dry','sensitive','normal'], reasoning:'Body cleanser with ceramides and hyaluronic acid. Moisturizes while cleansing.', productlink:'https://www.cerave.in/cleansers/hydrating-cleanser', image:'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=500&q=80', reviews:[{name:'Divya L.',stars:5,text:'Skin doesn\'t feel tight after shower.'},{name:'Sanjana M.',stars:5,text:'Perfect for dry skin in winter.'}] },
+    { productname:'The Body Shop Tea Tree Body Wash', brand:'The Body Shop', price:'₹895', compatibilityscore:8.3, risklevel:'Low', suitableFor:['oily','acne-prone','combination'], reasoning:'Tea tree oil body wash for oily and acne-prone body skin. Helps with back acne and body odor.', productlink:'https://www.thebodyshop.com/en-in/body/body-wash/tea-tree-body-wash', image:'https://images.unsplash.com/photo-1596755389378-c31d21fd1273?w=500&q=80', reviews:[{name:'Isha T.',stars:4,text:'Great for back acne. Tingling sensation.'},{name:'Kiran M.',stars:4,text:'Fresh feel. Good for summer.'}] },
+  ],
+  lotion: [
+    { productname:'CeraVe Daily Moisturizing Lotion', brand:'CeraVe', price:'₹850', compatibilityscore:9.3, risklevel:'Low', suitableFor:['dry','sensitive','normal','combination'], reasoning:'Lightweight body lotion with ceramides. Absorbs quickly, non-greasy. Restores skin barrier.', productlink:'https://www.cerave.in/moisturizers/daily-moisturizing-lotion', image:'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=500&q=80', reviews:[{name:'Divya L.',stars:5,text:'My everyday lotion. Never greasy.'},{name:'Sanjana M.',stars:5,text:'Perfect for sensitive body skin.'}] },
+    { productname:'Neutrogena Norwegian Formula Body Lotion', brand:'Neutrogena', price:'₹699', compatibilityscore:8.8, risklevel:'Low', suitableFor:['dry','sensitive'], reasoning:'Concentrated formula for very dry skin. A little goes a long way. Fragrance-free option available.', productlink:'https://www.neutrogena.in/product/norwegian-formula-body-lotion', image:'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?w=500&q=80', reviews:[{name:'Rahul S.',stars:4,text:'Works on very dry patches. Needs rubbing in.'},{name:'Neha P.',stars:5,text:'Rescued my cracked heels!'}] },
+    { productname:'Plum Hello Aloe Calming Body Lotion', brand:'Plum', price:'₹349', compatibilityscore:8.6, risklevel:'Low', suitableFor:['sensitive','normal','oily','combination'], reasoning:'Aloe-based lightweight lotion. Cooling and calming for sensitive skin. Non-sticky finish.', productlink:'https://plumgoodness.com/products/aloe-body-lotion', image:'https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=500&q=80', reviews:[{name:'Shruti B.',stars:5,text:'Great for summer. Cools the skin down.'},{name:'Aditi R.',stars:4,text:'Light and absorbs fast.'}] },
+    { productname:'The Body Shop Vitamin E Moisture Rich Lotion', brand:'The Body Shop', price:'₹1295', compatibilityscore:9.0, risklevel:'Low', suitableFor:['dry','normal','combination'], reasoning:'Rich vitamin E moisturizer. Antioxidant protection and deep hydration for dry to normal skin.', productlink:'https://www.thebodyshop.com/en-in/body/body-lotion/vitamin-e-moisture-rich-lotion', image:'https://images.unsplash.com/photo-1596755389378-c31d21fd1273?w=500&q=80', reviews:[{name:'Pooja G.',stars:5,text:'Skin stays soft all day.'},{name:'Ritika V.',stars:4,text:'Great texture. Not too heavy.'}] },
+  ],
+};
+
+// ── CATEGORY FUNCTIONS ──
+function openCategory(catKey) {
+  _currentCategory = catKey;
+  const meta = categoryMeta[catKey];
+  const allProds = categoryDB[catKey] || [];
+
+  document.getElementById('cat-breadcrumb').textContent = meta.sub + ' / ' + meta.label;
+  document.getElementById('cat-page-title').textContent = meta.label;
+  document.getElementById('cat-page-sub').textContent = meta.desc;
+  document.getElementById('catSearch').value = '';
+  document.getElementById('catFilterPrice').value = '';
+  document.getElementById('catFilterRisk').value = '';
+  document.getElementById('catFilterSkin').value = '';
+  document.getElementById('catFilterPanel').classList.remove('open');
+
+  _catAllProducts = allProds;
+  _catDisplayed = [...allProds];
+  renderCatGrid(_catDisplayed);
+  showPage(8);
+}
+
+function renderCatGrid(products) {
+  const grid = document.getElementById('catProductGrid');
+  if (!products.length) {
+    grid.innerHTML = '<div class="empty-state"><div class="empty-icon">◇</div>No products match your filters.</div>';
+    return;
+  }
+  let html = '';
+  // Determine user skin types for suitability badge
+  const userSkinTypes = state.skintypes.length > 0 ? state.skintypes : (state.skintype ? [state.skintype] : []);
+
+  products.forEach((p, idx) => {
+    const rc = p.risklevel === 'Low' ? 'risk-low' : p.risklevel === 'Moderate' ? 'risk-moderate' : 'risk-high';
+    const sc = p.compatibilityscore;
+    // Suitability check
+    let suitBadge = '';
+    if (userSkinTypes.length > 0) {
+      const isSuitable = userSkinTypes.some(t => p.suitableFor.includes(t));
+      if (isSuitable) {
+        suitBadge = '<span style="background:#e6f4ea;color:#2d7a3a;border-radius:100px;padding:4px 12px;font-size:0.71rem;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;">✓ Suitable for your skin</span>';
+      } else {
+        suitBadge = '<span style="background:#fff3e0;color:#b75e00;border-radius:100px;padding:4px 12px;font-size:0.71rem;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;">⚠ May not suit your skin type</span>';
+      }
+    }
+    html +=
+      '<div class="result-card" style="cursor:pointer;" onclick="openProductDetail(' + idx + ', \'cat\')">' +
+      '<div class="rc-image-wrap">' +
+      '<img src="' + p.image + '" alt="' + p.productname + '" loading="lazy">' +
+      '<button class="rc-fav-btn" id="cat-fav-btn-' + idx + '" onclick="catToggleFav(' + idx + ',event)">♡</button>' +
+      '</div>' +
+      '<div class="rc-body">' +
+      '<div class="rc-brand">' + p.brand + '</div>' +
+      '<div class="rc-top">' +
+      '<div class="rc-name">' + p.productname + '</div>' +
+      '<div class="score-pill"><span class="score-stars">★</span><span class="score-num"> ' + sc + '</span><span style="font-size:0.69rem;color:var(--muted);margin-left:2px;">/10</span></div>' +
+      '</div>' +
+      '<div class="rc-price"><span class="rc-price-from">From: </span>' + p.price + '</div>' +
+      '<div class="rc-reason">' + p.reasoning + '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+      '<span class="risk-badge ' + rc + '">' + p.risklevel + ' Risk</span>' +
+      suitBadge +
+      '</div>' +
+      '<div class="rc-actions">' +
+      '<button class="rc-link" onclick="openProductDetail(' + idx + ',\'cat\');event.stopPropagation()">View Details →</button>' +
+      '<a class="rc-link-secondary" href="' + p.productlink + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">Shop ↗</a>' +
+      '</div>' +
+      '</div></div>';
+  });
+  grid.innerHTML = html;
+}
+
+function filterCatProducts() {
+  const query = (document.getElementById('catSearch').value || '').toLowerCase();
+  const priceF = document.getElementById('catFilterPrice').value;
+  const riskF = document.getElementById('catFilterRisk').value;
+  const skinF = document.getElementById('catFilterSkin').value;
+
+  _catDisplayed = _catAllProducts.filter(p => {
+    const matchQ = !query || p.productname.toLowerCase().includes(query) || p.brand.toLowerCase().includes(query);
+    const matchP = !priceF || getPriceTier(p.price) === priceF;
+    const matchR = !riskF || p.risklevel === riskF;
+    const matchS = !skinF || (p.suitableFor && p.suitableFor.includes(skinF));
+    return matchQ && matchP && matchR && matchS;
+  });
+  renderCatGrid(_catDisplayed);
+}
+
+function resetCatFilters() {
+  document.getElementById('catSearch').value = '';
+  document.getElementById('catFilterPrice').value = '';
+  document.getElementById('catFilterRisk').value = '';
+  document.getElementById('catFilterSkin').value = '';
+  _catDisplayed = [..._catAllProducts];
+  renderCatGrid(_catDisplayed);
+}
+
+function catToggleFav(idx, e) {
+  if (e) e.stopPropagation();
+  if (!currentUser || currentUser.isGuest) { showToast('Sign in to save products.', 'error-toast'); return; }
+  const p = _catDisplayed[idx];
+  if (!p) return;
+  const ud = getUserData(currentUser.email);
+  const exists = ud.favourites.findIndex(f => f.productname === p.productname);
+  const btn = document.getElementById('cat-fav-btn-' + idx);
+  if (exists > -1) {
+    ud.favourites.splice(exists, 1);
+    if (btn) { btn.textContent = '♡'; btn.classList.remove('faved'); }
+    showToast('Removed from saved.', '');
+  } else {
+    ud.favourites.unshift({ productname:p.productname, brand:p.brand, price:p.price, image:p.image, productlink:p.productlink });
+    if (btn) { btn.textContent = '♥'; btn.classList.add('faved'); }
+    showToast('Saved!', 'success');
+  }
+  saveUserData(currentUser.email, ud);
+}
+
+// ── PRODUCT DETAIL PAGE ──
+function openProductDetail(idx, source) {
+  // source: 'cat' = from category page, 'results' = from results page
+  const p = source === 'cat' ? _catDisplayed[idx] : _displayedProducts[idx];
+  if (!p) return;
+
+  _detailFromPage = source === 'cat' ? 8 : 6;
+  document.getElementById('detail-back-btn').onclick = () => showPage(_detailFromPage);
+
+  const catLabel = _currentCategory ? (categoryMeta[_currentCategory] ? categoryMeta[_currentCategory].label : '') : '';
+  document.getElementById('detail-breadcrumb').textContent = source === 'cat' ? (catLabel + ' / Product Detail') : 'Results / Product Detail';
+
+  // Suitability check
+  const userSkinTypes = state.skintypes.length > 0 ? state.skintypes : (state.skintype ? [state.skintype] : []);
+  let suitSection = '';
+  if (userSkinTypes.length > 0 && p.suitableFor) {
+    const isSuitable = userSkinTypes.some(t => p.suitableFor.includes(t));
+    const suitableTypes = p.suitableFor.map(t => cap(t.replace('-', ' '))).join(', ');
+    const userTypes = userSkinTypes.map(t => cap(t)).join(', ');
+    if (isSuitable) {
+      suitSection = '<div style="background:#e6f4ea;border:1.5px solid rgba(45,122,58,0.2);border-radius:14px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:flex-start;gap:12px;">' +
+        '<div style="font-size:1.3rem;color:#2d7a3a;flex-shrink:0;">✓</div>' +
+        '<div><div style="font-weight:700;font-size:0.86rem;color:#2d7a3a;margin-bottom:3px;">Suitable for your skin type</div>' +
+        '<div style="font-size:0.79rem;color:#2d7a3a;opacity:0.8;">Your type(s): ' + userTypes + '. This product is designed for: ' + suitableTypes + '.</div></div></div>';
+    } else {
+      suitSection = '<div style="background:#fff3e0;border:1.5px solid rgba(183,94,0,0.2);border-radius:14px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:flex-start;gap:12px;">' +
+        '<div style="font-size:1.3rem;color:#b75e00;flex-shrink:0;">⚠</div>' +
+        '<div><div style="font-weight:700;font-size:0.86rem;color:#b75e00;margin-bottom:3px;">May not suit your skin type</div>' +
+        '<div style="font-size:0.79rem;color:#b75e00;opacity:0.85;">Your type(s): ' + userTypes + '. This product is best for: ' + suitableTypes + '. Patch test recommended.</div></div></div>';
+    }
+  } else if (p.suitableFor) {
+    // No user profile yet — just show who it's for
+    const suitableTypes = p.suitableFor.map(t => cap(t.replace('-', ' '))).join(', ');
+    suitSection = '<div style="background:var(--cream);border:1px solid var(--border);border-radius:14px;padding:12px 16px;margin-bottom:16px;font-size:0.82rem;color:var(--muted);">Best for: <strong>' + suitableTypes + '</strong>. <a onclick="showPage(1)" style="color:var(--rose);cursor:pointer;font-weight:600;">Take the skin quiz →</a> to see if this suits you.</div>';
+  }
+
+  // Reviews
+  const revHtml = (p.reviews || []).map(r =>
+    '<div class="review-item">' +
+    '<div class="review-head"><div class="reviewer-avatar">' + r.name.charAt(0) + '</div>' +
+    '<span class="reviewer-name">' + r.name + '</span>' +
+    '<span class="review-stars">' + '★'.repeat(r.stars) + '☆'.repeat(5 - r.stars) + '</span></div>' +
+    '<div class="review-text">' + r.text + '</div></div>'
+  ).join('');
+
+  const rc = p.risklevel === 'Low' ? 'risk-low' : p.risklevel === 'Moderate' ? 'risk-moderate' : 'risk-high';
+
+  document.getElementById('detail-content').innerHTML =
+    '<div class="result-card" style="margin-bottom:0;cursor:default;">' +
+    '<div class="rc-image-wrap" style="height:280px;">' +
+    '<img src="' + p.image + '" alt="' + p.productname + '" loading="lazy">' +
+    '</div>' +
+    '<div class="rc-body">' +
+    '<div class="rc-brand">' + p.brand + '</div>' +
+    '<div class="rc-top">' +
+    '<div class="rc-name" style="font-size:1.4rem;">' + p.productname + '</div>' +
+    '<div class="score-pill"><span class="score-stars">★</span><span class="score-num"> ' + p.compatibilityscore + '</span><span style="font-size:0.69rem;color:var(--muted);margin-left:2px;">/10</span></div>' +
+    '</div>' +
+    '<div class="rc-price" style="font-size:1.15rem;margin-bottom:14px;"><span class="rc-price-from">From: </span>' + p.price + '</div>' +
+    suitSection +
+    '<div style="margin-bottom:14px;">' +
+    '<div style="font-size:0.74rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--mocha);margin-bottom:6px;">Best For</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:7px;">' +
+    (p.suitableFor || []).map(t => '<span style="background:var(--cream);border:1.5px solid var(--blush);border-radius:100px;padding:4px 13px;font-size:0.77rem;font-weight:500;color:var(--mocha);">' + cap(t.replace('-',' ')) + '</span>').join('') +
+    '</div></div>' +
+    '<div class="rc-reason" style="font-size:0.87rem;">' + p.reasoning + '</div>' +
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">' +
+    '<span class="risk-badge ' + rc + '">' + p.risklevel + ' Risk</span>' +
+    '</div>' +
+    '<div class="rc-actions">' +
+    '<a class="rc-link" href="' + p.productlink + '" target="_blank" rel="noopener">Shop Now ↗</a>' +
+    '<button class="rc-link-secondary" onclick="detailToggleFav(\'' + p.productname.replace(/'/g,"\\'") + '\',\'' + source + '\',' + idx + ')">♡ Save</button>' +
+    '</div>' +
+    '<div class="reviews-section">' +
+    '<div class="reviews-title">Reviews (' + (p.reviews || []).length + ')</div>' +
+    revHtml +
+    '<div class="add-review-wrap">' +
+    '<div class="add-review-label">Write a review</div>' +
+    '<textarea class="add-review-input" id="detail-rv-text" placeholder="Share your experience…"></textarea>' +
+    '<div class="add-review-row">' +
+    '<div class="star-picker" id="detail-sp" data-val="0">' +
+    [1,2,3,4,5].map(s => '<button class="star-btn" onclick="setDetailStar(' + s + ')">★</button>').join('') +
+    '</div>' +
+    '<button class="btn-submit-review" onclick="submitDetailReview()">Post</button>' +
+    '</div></div></div></div></div>';
+
+  showPage(9);
+}
+
+function setDetailStar(val) {
+  const sp = document.getElementById('detail-sp');
+  if (!sp) return;
+  sp.dataset.val = val;
+  sp.querySelectorAll('.star-btn').forEach((b, i) => b.classList.toggle('active', i < val));
+}
+
+function submitDetailReview() {
+  const txt = (document.getElementById('detail-rv-text') || {}).value;
+  if (!txt || !txt.trim()) { showToast('Please write a review.', 'error-toast'); return; }
+  const sp = document.getElementById('detail-sp');
+  const starVal = parseInt(sp ? sp.dataset.val : '0');
+  if (!starVal) { showToast('Please select a star rating.', 'error-toast'); return; }
+  const uName = currentUser ? currentUser.name.split(' ')[0] : 'You';
+  const item = document.createElement('div');
+  item.className = 'review-item';
+  item.innerHTML =
+    '<div class="review-head"><div class="reviewer-avatar">' + uName.charAt(0) + '</div>' +
+    '<span class="reviewer-name">' + uName + '</span>' +
+    '<span class="review-stars">' + '★'.repeat(starVal) + '☆'.repeat(5 - starVal) + '</span></div>' +
+    '<div class="review-text">' + txt.trim() + '</div>';
+  const title = document.querySelector('#detail-content .reviews-title');
+  if (title) title.after(item);
+  document.getElementById('detail-rv-text').value = '';
+  if (sp) { sp.dataset.val = '0'; sp.querySelectorAll('.star-btn').forEach(b => b.classList.remove('active')); }
+  showToast('Review posted!', 'success');
+}
+
+function detailToggleFav(productname, source, idx) {
+  if (!currentUser || currentUser.isGuest) { showToast('Sign in to save products.', 'error-toast'); return; }
+  const p = source === 'cat' ? _catDisplayed[idx] : _displayedProducts[idx];
+  if (!p) return;
+  const ud = getUserData(currentUser.email);
+  const exists = ud.favourites.findIndex(f => f.productname === p.productname);
+  const saveBtn = document.querySelector('#detail-content .rc-link-secondary');
+  if (exists > -1) {
+    ud.favourites.splice(exists, 1);
+    if (saveBtn) saveBtn.textContent = '♡ Save';
+    showToast('Removed from saved.', '');
+  } else {
+    ud.favourites.unshift({ productname:p.productname, brand:p.brand, price:p.price, image:p.image, productlink:p.productlink });
+    if (saveBtn) saveBtn.textContent = '♥ Saved';
+    showToast('Saved!', 'success');
+  }
+  saveUserData(currentUser.email, ud);
+}
+
+// ── UTILS ──
+function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (type ? ' ' + type : '');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (msg) el.textContent = msg;
+  el.classList.add('show');
+}
+function clearErrors(ids) {
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('show'); });
+}
+function shake(el) {
+  if (!el) return;
+  el.style.animation = 'none';
+  el.offsetHeight;
+  el.style.animation = 'shake 0.4s ease';
+  setTimeout(() => el.style.animation = '', 500);
+}
+</script>
+</body>
+</html>
